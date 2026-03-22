@@ -64,26 +64,27 @@ export default function Home() {
     return () => { mounted = false; };
   }, [authLoading, fetchDomains]);
 
-  // 3. Initial UI Calibration (Speed Focused)
+  // 3. Initial UI Calibration (Hard Failsafe)
   useEffect(() => {
-    if (authLoading) return;
     let mounted = true;
     
-    // Fast calibration experience
+    // Fast calibration experience - even if auth is slow
     const calibrationTimer = setTimeout(() => {
-      if (mounted) setIsInitialLoading(false);
-    }, 800); 
+      if (mounted) {
+        setIsInitialLoading(false);
+        console.log("UI: Calibration forced to complete.");
+      }
+    }, 1500); 
 
     return () => { 
       mounted = false; 
       clearTimeout(calibrationTimer);
     };
-  }, [authLoading]);
+  }, []); // Runs immediately on mount
 
   // 4. Address Restoration & Selection Sync
   useEffect(() => {
-    if (authLoading) return;
-    
+    // We can restore from localStorage even if auth is still loading
     const storedAddress = localStorage.getItem("quamify_active_email");
     const forceNew = sessionStorage.getItem("forceNewQuamifyEmail");
 

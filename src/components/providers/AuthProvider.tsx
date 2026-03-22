@@ -79,7 +79,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    initializeAuth()
+    const mounted = true
+    const failsafe = setTimeout(() => {
+      if (isLoading) {
+        console.warn("AUTH: Failsafe triggered - forcing isLoading to false.")
+        setIsLoading(false)
+      }
+    }, 4500)
+
+    initializeAuth().finally(() => {
+      clearTimeout(failsafe)
+    })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       if (!mounted) return
