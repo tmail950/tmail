@@ -15,9 +15,17 @@ export async function updateSession(request: NextRequest) {
     sameSite: 'lax',
   }
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn("Middleware: Missing Supabase environment variables.");
+    return response;
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         get(name: string) {
@@ -76,9 +84,13 @@ export async function updateSession(request: NextRequest) {
     return response
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  } catch (err) {
+    console.error("Middleware: getUser failed:", err);
+  }
 
   // 1. If NO user and trying to access protected routes, redirect to login
   if (!user && !isLoginPath && !isAuthPath && !isHomePath) {
