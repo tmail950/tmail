@@ -1,0 +1,34 @@
+import { createAdminClient } from '@/lib/supabase/admin'
+import { NextResponse } from 'next/server'
+
+export async function POST(request: Request) {
+  try {
+    const { email, password, username } = await request.json()
+
+    if (!email || !password) {
+      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
+    }
+
+    const supabase = createAdminClient()
+
+    // 1. Create the user with email_confirm: true
+    const { data: userData, error: signupError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { username }
+    })
+
+    if (signupError) {
+      return NextResponse.json({ error: signupError.message }, { status: signupError.status || 500 })
+    }
+
+    return NextResponse.json({ 
+      message: 'User created successfully',
+      user: userData.user
+    })
+  } catch (error: any) {
+    console.error('Signup error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}

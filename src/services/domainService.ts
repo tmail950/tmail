@@ -31,11 +31,13 @@ export const domainService = {
 
   async getSettings() {
     try {
-      const { data } = await supabase.from('site_settings').select('*')
+      const { data, error } = await supabase.from('site_settings').select('*')
+      if (error) throw error
       const settings: Record<string, string> = {}
       data?.forEach((s: any) => settings[s.key] = s.value)
       return settings
     } catch (e) {
+      console.warn("Settings fetch failed (table might be missing):", e)
       return {}
     }
   },
@@ -109,12 +111,13 @@ export const domainService = {
   },
 
   async deleteDomain(id: string) {
-    const { error } = await supabase
+    const { error, count } = await supabase
       .from('user_domains')
-      .delete()
-      .match({ id })
+      .delete({ count: 'exact' })
+      .eq('id', id)
 
     if (error) throw error
+    if (count === 0) throw new Error('Deletion failed: Domain not found or permission denied.')
   },
 
   async getCustomDomains() {
@@ -128,16 +131,21 @@ export const domainService = {
     const user = session?.user
     if (!user) throw new Error('Not authenticated')
     
-    const { data, error } = await supabase
-      .from('custom_domains')
-      .upsert({ 
-        domain_name: domainName.toLowerCase().trim(), 
-        user_id: user.id 
-      })
-      .select()
-      .single()
-    if (error) throw error
-    return data
+    try {
+      const { data, error } = await supabase
+        .from('custom_domains')
+        .upsert({ 
+          domain_name: domainName.toLowerCase().trim(), 
+          user_id: user.id 
+        })
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    } catch (e) {
+      console.error("Failed to add custom domain:", e)
+      throw e
+    }
   },
 
   async verifyCustomDomain(domainName: string) {
@@ -208,5 +216,25 @@ export const domainService = {
     
     if (error) throw error
     return data as DomainRecord[]
+  },
+
+  async listPublicDomains() {
+    try {
+      const { data, error } = await supabase
+        .from('user_domains')
+        .select('*')
+        .eq('admin_approval', 'approved')
+        .eq('is_verified', true)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return (data as DomainRecord[]) || []
+    } catch (e) {
+      return []
+    }
+  },
+
+  async deletePlatformDomain(id: string) {
+    // Legacy method for cleanup
+    return;
   }
 }

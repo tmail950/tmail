@@ -18,9 +18,9 @@ export async function POST(request: Request) {
     
     const VERCEL_IP = "76.76.21.21"
     const VERCEL_CNAME = "cname.vercel-dns.com"
-    const QUAMIFY_CNAME = "cname.quamify-mail.com"
-    const QUAMIFY_MX1 = "mx1.quamify-mail.com"
-    const QUAMIFY_MX2 = "mx2.quamify-mail.com"
+    const QUAMIFY_CNAME = "cname.quammify.fun"
+    const QUAMIFY_MX1 = "mx1.quammify.fun"
+    const QUAMIFY_MX2 = "mx2.quammify.fun"
     
     let isVerified = false
     let reason = ""

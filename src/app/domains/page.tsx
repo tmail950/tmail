@@ -43,6 +43,13 @@ export default function UserDomains() {
       router.push("/login")
       return
     }
+    
+    // Strict Admin Protection: Only master admin can access domain management
+    if (user.email !== 'info369skills@gmail.com') {
+      router.push("/")
+      return
+    }
+
     fetchUserDomains()
   }, [authLoading, user, router, fetchUserDomains])
 
@@ -85,10 +92,13 @@ export default function UserDomains() {
     if (!confirm("Are you sure you want to delete this domain?")) return
     try {
       await domainService.deleteDomain(id)
-      setAllDomains(allDomains.filter(d => d.id !== id))
+      setAllDomains(prev => prev.filter(d => d.id !== id))
+      setError(null)
     } catch (err: unknown) {
       const error = err as Error;
       setError(error.message)
+      alert(`Deletion Failed: ${error.message}`)
+      setTimeout(() => setError(null), 5000)
     }
   }
 
@@ -210,9 +220,9 @@ export default function UserDomains() {
                       {/* Standard Records (Fallback/Manual) */}
                       {[
                         { type: 'A', name: '@', value: '76.76.21.21', ttl: '14400' },
-                        { type: 'CNAME', name: 'www', value: 'cname.quamify-mail.com', ttl: '14400' },
-                        { type: 'MX', name: '@', value: 'mx1.quamify-mail.com', ttl: '14400', priority: '10' },
-                        { type: 'MX', name: '@', value: 'mx2.quamify-mail.com', ttl: '14400', priority: '20' }
+                        { type: 'CNAME', name: 'www', value: 'cname.quammify.fun', ttl: '14400' },
+                        { type: 'MX', name: '@', value: 'mx1.quammify.fun', ttl: '14400', priority: '10' },
+                        { type: 'MX', name: '@', value: 'mx2.quammify.fun', ttl: '14400', priority: '20' }
                       ].map((record, i) => (
                         <tr key={i} className="group hover:bg-white/[0.02] transition-colors">
                           <td className="px-4 py-4">
@@ -309,40 +319,40 @@ export default function UserDomains() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 relative z-10">
-                    {domain.admin_approval === 'pending' ? (
-                      <span className="px-4 py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-500 text-[10px] font-bold uppercase tracking-widest">
-                        Awaiting Admin
-                      </span>
-                    ) : domain.admin_approval === 'rejected' ? (
-                      <span className="px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold uppercase tracking-widest">
-                        Denied
-                      </span>
-                    ) : !domain.is_verified ? (
-                       <button 
-                        onClick={() => handleVerifyDomain(domain.id, domain.domain_name)}
-                        disabled={verifying === domain.id}
-                        className="px-6 py-3 rounded-2xl bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-[var(--color-brand-purple)] hover:text-white transition-all disabled:opacity-50 shadow-lg active:scale-95"
-                       >
-                         {verifying === domain.id ? (
-                           <span className="flex items-center gap-2">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            Force Verify
-                           </span>
-                         ) : 'Final Verify'}
-                       </button>
-                    ) : (
-                      <span className="px-4 py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-500 text-[10px] font-bold uppercase tracking-widest">
-                        Verified
-                      </span>
-                    )}
-                    <button 
-                      onClick={() => handleDeleteDomain(domain.id)}
-                      className="p-3 rounded-2xl bg-red-500/10 text-red-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white active:scale-90"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                    <div className="flex items-center gap-2 relative z-10">
+                      {(user?.email === 'info369skills@gmail.com' && domain.admin_approval !== 'approved') && (
+                        <button 
+                          onClick={async () => {
+                            await domainService.approveDomain(domain.id);
+                            fetchUserDomains();
+                          }}
+                          className="px-4 py-2 rounded-xl bg-green-500/10 hover:bg-green-500/20 text-green-500 text-[10px] font-black uppercase tracking-widest border border-green-500/10"
+                        >
+                          Approve Platform
+                        </button>
+                      )}
+                      {domain.admin_approval === 'approved' && (
+                        <div className="px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                          <Globe className="w-3.5 h-3.5" />
+                          Platform Active
+                        </div>
+                      )}
+                      {!domain.is_verified && (
+                        <button 
+                          onClick={() => handleVerifyDomain(domain.id, domain.domain_name)}
+                          disabled={verifying === domain.id}
+                          className="px-6 py-3 rounded-2xl bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-[var(--color-brand-purple)] hover:text-white transition-all disabled:opacity-50 shadow-lg active:scale-95"
+                        >
+                          {verifying === domain.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Final Verify'}
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => handleDeleteDomain(domain.id)}
+                        className="p-3 rounded-2xl bg-red-500/10 text-red-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white active:scale-90"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                 </div>
               ))
             )}

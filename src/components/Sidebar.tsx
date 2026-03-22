@@ -2,6 +2,7 @@
 
 import { Email } from "@/types";
 import { motion } from "framer-motion";
+import { memo } from "react";
 
 interface SidebarProps {
   emails: Email[];
@@ -31,7 +32,7 @@ function getTimeAgo(dateStr: string | undefined): string {
   return `${diffInDays}d ago`;
 }
 
-export default function Sidebar({ emails, selectedEmailId, onSelectEmail }: SidebarProps) {
+export default memo(function Sidebar({ emails, selectedEmailId, onSelectEmail }: SidebarProps) {
   if (emails.length === 0) {
     return (
       <div className="h-full flex flex-col justify-center items-center p-6 text-gray-500">
@@ -46,46 +47,52 @@ export default function Sidebar({ emails, selectedEmailId, onSelectEmail }: Side
         <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-4">Transmission Log ({emails.length})</h3>
       </div>
       <div className="flex flex-col p-3 space-y-3">
-        {emails.map((email) => {
-          const isSelected = selectedEmailId === email.id;
-          
-          return (
-            <button
-              key={email.id}
-              onClick={() => onSelectEmail(email.id)}
-              className={`text-left w-full p-5 rounded-2xl transition-all duration-500 relative overflow-hidden flex flex-col gap-2 oil-slick border border-transparent ${
-                isSelected 
-                  ? "bg-white/10 border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)] scale-[1.02] z-10" 
-                  : "hover:bg-white/5 hover:border-white/5"
-              }`}
-            >
-              {isSelected && (
-                <motion.div 
-                  layoutId="active-indicator"
-                  className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-[var(--color-brand-purple)] to-[var(--color-brand-pink)] shadow-[0_0_20px_var(--color-brand-pink)]"
-                ></motion.div>
-              )}
-              
-              <div className="flex justify-between items-start w-full">
-                <span className={`font-black tracking-tight truncate max-w-[70%] ${isSelected ? 'text-white text-lg' : 'text-gray-300'}`}>
-                  {email.sender?.split('<')[0].trim() || "Unknown"}
-                </span>
-                <span className="text-[10px] text-gray-500 font-mono tracking-tighter uppercase whitespace-nowrap mt-1">
-                  {getTimeAgo(email.received_at)}
-                </span>
-              </div>
-              
-              <span className={`text-sm tracking-tight truncate w-full ${isSelected ? 'text-[var(--color-brand-pink)] font-bold' : 'text-gray-400'}`}>
-                {email.subject || "(No Subject)"}
-              </span>
-              
-              <p className="text-xs text-gray-600 line-clamp-1 leading-relaxed">
-                {email.body_text?.substring(0, 60) || "Empty transmission content."}
-              </p>
-            </button>
-          );
-        })}
+        {emails.map((email) => (
+          <SidebarItem 
+            key={email.id} 
+            email={email} 
+            isSelected={selectedEmailId === email.id} 
+            onSelect={onSelectEmail} 
+          />
+        ))}
       </div>
     </div>
   );
-}
+});
+
+const SidebarItem = memo(({ email, isSelected, onSelect }: { email: Email, isSelected: boolean, onSelect: (id: string) => void }) => {
+  return (
+    <button
+      onClick={() => onSelect(email.id)}
+      className={`text-left w-full p-5 rounded-2xl transition-all duration-500 relative overflow-hidden flex flex-col gap-2 oil-slick border border-transparent ${
+        isSelected 
+          ? "bg-white/10 border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)] scale-[1.02] z-10" 
+          : "hover:bg-white/5 hover:border-white/5"
+      }`}
+    >
+      {isSelected && (
+        <motion.div 
+          layoutId="active-indicator"
+          className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-[var(--color-brand-purple)] to-[var(--color-brand-pink)] shadow-[0_0_20px_var(--color-brand-pink)]"
+        ></motion.div>
+      )}
+      
+      <div className="flex justify-between items-start w-full">
+        <span className={`font-black tracking-tight truncate max-w-[70%] ${isSelected ? 'text-white text-lg' : 'text-gray-300'}`}>
+          {email.sender?.split('<')[0].trim() || "Unknown"}
+        </span>
+        <span className="text-[10px] text-gray-500 font-mono tracking-tighter uppercase whitespace-nowrap mt-1">
+          {getTimeAgo(email.received_at)}
+        </span>
+      </div>
+      
+      <span className={`text-sm tracking-tight truncate w-full ${isSelected ? 'text-[var(--color-brand-pink)] font-bold' : 'text-gray-400'}`}>
+        {email.subject || "(No Subject)"}
+      </span>
+      
+      <p className="text-xs text-gray-600 line-clamp-1 leading-relaxed">
+        {email.body_text?.substring(0, 60) || "Empty transmission content."}
+      </p>
+    </button>
+  );
+});

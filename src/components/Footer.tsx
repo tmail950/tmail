@@ -1,10 +1,10 @@
 "use client";
 
+import { useEffect, useState, memo } from "react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { domainService } from "@/services/domainService";
 
-export default function Footer() {
+const Footer = memo(() => {
   const [copyright, setCopyright] = useState("Quamify. All Rights Reserved.");
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export default function Footer() {
         
         <div className="text-center space-y-2">
           <p className="text-sm font-black tracking-widest text-white/40 uppercase">
-            {!copyright.includes("©") && !copyright.includes("&copy;") && <span>&copy; {new Date().getFullYear()} </span>}
+            {(!copyright.includes("©") && !copyright.includes("&copy;")) && <span>&copy; {new Date().getFullYear()} </span>}
             {copyright}
           </p>
           <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
@@ -48,4 +48,7 @@ export default function Footer() {
       </div>
     </footer>
   );
-}
+});
+
+Footer.displayName = "Footer";
+export default Footer;

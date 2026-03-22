@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Loader2 } from "lucide-react";
 import HeroAddress from "@/components/HeroAddress";
 import Sidebar from "@/components/Sidebar";
 import EmailViewer from "@/components/EmailViewer";
@@ -26,103 +26,92 @@ export default function Home() {
   const [prefix, setPrefix] = useState<string>("");
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [verifiedDomains, setVerifiedDomains] = useState<DomainRecord[]>([]);
-  const [selectedDomain, setSelectedDomain] = useState<string>("Loading...");
+  const [selectedDomain, setSelectedDomain] = useState<string>("");
   const [isAuto, setIsAuto] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
+  // 1. Fetch Domains Logic
   const fetchDomains = useCallback(async () => {
-    if (!user) return;
     try {
-      const domains = await domainService.listDomains();
-      const verified = domains.filter(d => d.is_verified);
-      setVerifiedDomains(verified);
-      
-      // If we have verified domains and currently only using the default, 
-      // maybe switch to the first verified domain if needed.
+      const platformDomains = await domainService.listPublicDomains();
+      return platformDomains.map((d: any) => ({
+        id: d.id,
+        domain_name: d.domain_name,
+        is_verified: d.is_verified,
+        created_at: d.created_at
+      } as DomainRecord));
     } catch (err) {
+      console.error("Domain fetch error:", err);
+      return [];
     }
-  }, [user]);
+  }, []);
 
-  // Handle initial domain and address generation
+  // 2. Initial Setup Effect
   useEffect(() => {
     let mounted = true;
 
     const init = async () => {
-      try {
-        const platformDefault = "quamify-mail.com";
-        
-        // Always show platform default initially
-        if (mounted && !selectedDomain) {
-           setSelectedDomain(platformDefault);
-        }
+      setIsInitialLoading(true);
+      const allDomains = await fetchDomains();
+      if (!mounted) return;
+      
+      setVerifiedDomains(allDomains);
 
-        if (!user) {
-          if (mounted) setSelectedDomain(platformDefault);
-          return;
-        }
+      // Handle address restoration or generation
+      const storedAddress = localStorage.getItem("quamify_active_email");
+      const forceNew = sessionStorage.getItem("forceNewQuamifyEmail");
 
-        const domains = await domainService.listDomains();
-        const verified = domains.filter(d => d.is_verified);
-        if (mounted) setVerifiedDomains(verified);
+      let finalPrefix = "";
+      let finalDomain = "";
 
-        const forceNew = sessionStorage.getItem("forceNewQuamifyEmail");
-        const storedAddress = localStorage.getItem("quamify_active_email");
-        
-        // Use the first verified domain as preference, fallback to platform default
-        const defaultDomain = verified.length > 0 ? verified[0].domain_name : platformDefault;
-
-        if (forceNew === "true" || !storedAddress || !storedAddress.includes("@")) {
-          const newPrefix = generateRandomString(10);
-          setPrefix(newPrefix);
-          setSelectedDomain(defaultDomain);
-          localStorage.setItem("quamify_active_email", `${newPrefix}@${defaultDomain}`);
-          sessionStorage.removeItem("forceNewQuamifyEmail");
-          setIsAuto(true);
-        } else {
-          const [storedPrefix, storedDomain] = storedAddress.split("@");
-          setPrefix(storedPrefix);
-          // Check if stored domain is still valid (platform default is always valid)
-          const isStillValid = storedDomain === platformDefault || verified.some(v => v.domain_name === storedDomain);
-          setSelectedDomain(isStillValid ? (storedDomain || defaultDomain) : defaultDomain);
-          setIsAuto(false);
-        }
-      } catch (err) {
-        if (mounted) setSelectedDomain("quamify-mail.com");
+      if (forceNew === "true" || !storedAddress || !storedAddress.includes("@")) {
+        finalPrefix = generateRandomString(10);
+        finalDomain = allDomains.length > 0 ? allDomains[0].domain_name : "";
+        setIsAuto(true);
+        sessionStorage.removeItem("forceNewQuamifyEmail");
+      } else {
+        const [storedPrefix, storedDom] = storedAddress.split("@");
+        // Verify stored domain is still valid
+        const isValid = allDomains.some(d => d.domain_name === storedDom);
+        finalPrefix = storedPrefix;
+        finalDomain = isValid ? storedDom : (allDomains.length > 0 ? allDomains[0].domain_name : "");
+        setIsAuto(false);
       }
+
+      setPrefix(finalPrefix);
+      setSelectedDomain(finalDomain);
+      setIsInitialLoading(false);
     };
     
     init();
+    return () => { mounted = false; };
+  }, [fetchDomains]); // Removed user dependency to avoid redundant re-runs if session is stable
 
-    return () => {
-      mounted = false;
-    };
-  }, [user]); 
+  // 3. Address Calculation (Memoized)
+  const address = useMemo(() => {
+    if (!prefix || !selectedDomain) return "";
+    return `${prefix.toLowerCase().replace(/[^a-z0-9]/g, '')}@${selectedDomain}`;
+  }, [prefix, selectedDomain]);
 
-  // Derive address from prefix and domain
-  const address = (prefix && selectedDomain && selectedDomain !== "Loading...") 
-    ? `${prefix.toLowerCase().replace(/[^a-z0-9]/g, '')}@${selectedDomain}`
-    : "";
-
-  // Update localStorage when address changes
+  // 4. Persistence Effect
   useEffect(() => {
-    if (address) {
-      localStorage.setItem("quamify_active_email", address);
-    }
+    if (address) localStorage.setItem("quamify_active_email", address);
   }, [address]);
 
   const { emails, isLoading } = useEmails(address);
   const selectedEmail = emails.find((e) => e.id === selectedEmailId) || null;
 
-  const handleDomainChange = (newDomain: string) => {
+  const handleDomainChange = useCallback((newDomain: string) => {
     setSelectedDomain(newDomain);
-  };
+  }, []);
 
-  const handleAutoGenerate = () => {
+  const handleAutoGenerate = useCallback(() => {
     const newPrefix = generateRandomString(10);
     setPrefix(newPrefix);
     setIsAuto(true);
-  };
+  }, []);
 
-  const simulateEmail = async () => {
+  const simulateEmail = useCallback(async () => {
     if (!address) return;
     try {
       await supabase.from("emails").insert({
@@ -134,25 +123,32 @@ export default function Home() {
       });
     } catch (e) {
     }
-  };
+  }, [address]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-120px)] w-full max-w-7xl mx-auto space-y-6 flex-1 px-4 sm:px-0">
       <div className="flex-1 flex flex-col items-center justify-start py-8 sm:py-16">
-        <HeroAddress 
-          emailAddress={address} 
-          prefix={prefix}
-          onPrefixChange={(val) => {
-            setPrefix(val);
-            setIsAuto(false);
-          }}
-          onAutoGenerate={handleAutoGenerate}
-          isAuto={isAuto}
-          selectedDomain={selectedDomain}
-          verifiedDomains={verifiedDomains}
-          onDomainChange={handleDomainChange}
-          onSimulate={simulateEmail}
-        />
+        {isInitialLoading ? (
+          <div className="flex flex-col items-center gap-4 py-20">
+            <Loader2 className="w-12 h-12 text-[var(--color-brand-pink)] animate-spin" />
+            <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.3em]">Calibrating Holographic Grid...</p>
+          </div>
+        ) : (
+          <HeroAddress 
+            emailAddress={address} 
+            prefix={prefix}
+            onPrefixChange={(val) => {
+              setPrefix(val);
+              setIsAuto(false);
+            }}
+            onAutoGenerate={handleAutoGenerate}
+            isAuto={isAuto}
+            selectedDomain={selectedDomain}
+            verifiedDomains={verifiedDomains}
+            onDomainChange={handleDomainChange}
+            onSimulate={simulateEmail}
+          />
+        )}
       </div>
 
       <div className="flex-1 min-h-0 border border-white/10 rounded-3xl overflow-hidden glass-panel flex flex-col shadow-2xl relative mb-8">

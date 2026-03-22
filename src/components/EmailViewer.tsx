@@ -1,12 +1,13 @@
 "use client";
 
 import { Email } from "@/types";
+import { memo } from "react";
 
 interface EmailViewerProps {
   email: Email | null;
 }
 
-export default function EmailViewer({ email }: EmailViewerProps) {
+export default memo(function EmailViewer({ email }: EmailViewerProps) {
   if (!email) {
     return (
       <div className="h-full w-full flex items-center justify-center p-8 bg-black/10 rounded-2xl border border-white/5">
@@ -63,4 +64,4 @@ export default function EmailViewer({ email }: EmailViewerProps) {
       </div>
     </div>
   );
-}
+});

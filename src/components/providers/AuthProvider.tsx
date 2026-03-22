@@ -114,14 +114,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      setIsLoading(true)
-      await supabase.auth.signOut()
-      // Force a full browser reload to clear all stale memory
-      window.location.href = '/login'
-    } catch (err) {
-      window.location.href = '/login'
+      console.log("Authentication termination sequence initiated...");
+      
+      // 1. Clear Supabase session
+      await supabase.auth.signOut();
+      
+      // 2. Explicitly wipe all local and session storage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // 3. Force redirect to login with a hard reload to clear any memory-leaked state
+      window.location.href = '/login?logout=success';
+    } catch (error) {
+      console.error('Error during authentication termination:', error);
+      // Fallback redirect even on failure
+      window.location.href = '/login';
     }
-  }
+  };
 
   return (
     <AuthContext.Provider value={{ user, session, isAdmin, isLoading, signOut }}>

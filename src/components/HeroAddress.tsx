@@ -1,6 +1,4 @@
-"use client";
-
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Wand2, Copy, Check, Globe, Zap } from 'lucide-react';
 import { motion } from "framer-motion";
 import { type DomainRecord } from "@/services/domainService";
@@ -17,7 +15,7 @@ interface HeroAddressProps {
   onSimulate?: () => void;
 }
 
-export default function HeroAddress({ 
+const HeroAddress = memo(({ 
   emailAddress, 
   prefix, 
   onPrefixChange, 
@@ -27,7 +25,7 @@ export default function HeroAddress({
   verifiedDomains,
   onDomainChange,
   onSimulate
-}: HeroAddressProps) {
+}: HeroAddressProps) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -71,24 +69,9 @@ export default function HeroAddress({
                 onChange={(e) => onDomainChange(e.target.value)}
                 className="w-full sm:w-auto bg-white/5 hover:bg-white/10 text-base sm:text-lg font-bold text-gray-300 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl outline-none cursor-pointer appearance-none transition-all text-center sm:text-left"
               >
-                {/* 
-                  Only show the selected domain if:
-                  1. It is in the verified list 
-                  2. OR the verified list is empty (fallback to system default)
-                  3. OR it's a domain we want to show anyway (like the one currently in use)
-                */}
-                
-                {/* Platform Default */}
-                {selectedDomain !== "quamify-mail.com" && (
-                   <option value="quamify-mail.com" className="bg-[#050505]">quamify-mail.com</option>
-                )}
-
-                {/* System Default / Currently Active */}
                 <option value={selectedDomain} className="bg-[#050505]">{selectedDomain}</option>
-                
-                {/* List other uniquely verified domains */}
                 {verifiedDomains
-                  .filter(d => d.domain_name !== selectedDomain && d.domain_name !== "quamify-mail.com")
+                  .filter(d => d.domain_name !== selectedDomain)
                   .map(d => (
                     <option key={d.id} value={d.domain_name} className="bg-[#050505]">{d.domain_name}</option>
                   ))}
@@ -104,7 +87,7 @@ export default function HeroAddress({
                     : "bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/5"
                 }`}
               >
-                <Wand2 className="w-4 h-4" />
+                < Wand2 className="w-4 h-4" />
                 Auto-Gen
               </button>
               
@@ -148,4 +131,7 @@ export default function HeroAddress({
       </div>
     </motion.div>
   );
-}
+});
+
+HeroAddress.displayName = "HeroAddress";
+export default HeroAddress;

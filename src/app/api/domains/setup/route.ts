@@ -45,7 +45,9 @@ export async function POST(request: Request) {
     // 2. Generate Verification Token
     const verificationToken = `quamify-verify-${Math.random().toString(36).substring(2, 15)}`;
 
-    if (!isAutoApprove) {
+    const isAdmin = session.user.email === 'info369skills@gmail.com';
+
+    if (!isAutoApprove && !isAdmin) {
       // Manual approval mode: Just insert the domain as pending
       const { data: domain, error: insertError } = await supabase
         .from('user_domains')

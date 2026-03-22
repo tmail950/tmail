@@ -1,9 +1,10 @@
 "use client";
 
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { Inbox } from "lucide-react";
 
-export default function EmptyState() {
+const EmptyState = memo(() => {
   return (
     <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center min-h-[400px]">
       <motion.div 
@@ -70,4 +71,7 @@ export default function EmptyState() {
       </motion.div>
     </div>
   );
-}
+});
+
+EmptyState.displayName = "EmptyState";
+export default EmptyState;

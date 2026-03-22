@@ -113,10 +113,10 @@ export default function AdminSettings() {
         </div>
         
         <button 
-          onClick={() => router.push('/admin/requests')}
-          className="px-6 py-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-500 text-[10px] font-black uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all shadow-lg"
+          onClick={() => router.push('/domains')}
+          className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all border border-white/5"
         >
-          View Pending Requests
+          My Domains
         </button>
       </div>
 

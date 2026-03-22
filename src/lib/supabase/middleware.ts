@@ -64,17 +64,24 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
+  const isLoginPath = request.nextUrl.pathname.startsWith('/login')
+  const isAuthPath = request.nextUrl.pathname.startsWith('/auth') || request.nextUrl.pathname.startsWith('/api/auth')
+  const isHomePath = request.nextUrl.pathname === '/'
+  const isIngestPath = request.nextUrl.pathname.startsWith('/api/ingest')
+  const isPublicApiPath = request.nextUrl.pathname.startsWith('/api/domains')
+  const isPublicContent = request.nextUrl.pathname === '/terms' || request.nextUrl.pathname === '/safety' || request.nextUrl.pathname === '/icon.svg'
+
+  // Skip getUser for truly public APIs and static content to save a network roundtrip
+  if (isIngestPath || isPublicApiPath || isPublicContent) {
+    return response
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const isLoginPath = request.nextUrl.pathname.startsWith('/login')
-  const isAuthPath = request.nextUrl.pathname.startsWith('/auth')
-  const isHomePath = request.nextUrl.pathname === '/'
-  const isIngestPath = request.nextUrl.pathname.startsWith('/api/ingest')
-
   // 1. If NO user and trying to access protected routes, redirect to login
-  if (!user && !isLoginPath && !isAuthPath && !isHomePath && !isIngestPath) {
+  if (!user && !isLoginPath && !isAuthPath && !isHomePath) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     

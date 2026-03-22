@@ -1,17 +1,18 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, Suspense, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mail, Chrome, Lock, Loader2, Eye, EyeOff } from "lucide-react"
 import { useSearchParams, useRouter } from 'next/navigation'
+import { domainService } from '@/services/domainService';
 
 function LoginContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const errorFromUrl = searchParams.get('error')
   
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -19,32 +20,69 @@ function LoginContent() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(
     errorFromUrl ? { type: 'error', text: errorFromUrl } : null
   )
+  const [availableDomains, setAvailableDomains] = useState<string[]>([])
+  const [selectedDomain, setSelectedDomain] = useState('')
   const supabase = createClient()
+
+  // Fetch professional domains on mount
+  useEffect(() => {
+    const fetchDomains = async () => {
+      try {
+        const platformDomains = await domainService.listPublicDomains();
+        if (platformDomains && platformDomains.length > 0) {
+          const names = platformDomains.map((d: any) => d.domain_name);
+          setAvailableDomains(names);
+          setSelectedDomain(names[0]);
+        } else {
+          setAvailableDomains([]);
+          setSelectedDomain("");
+        }
+      } catch (e) {
+        console.error('Failed to fetch domains', e);
+        setAvailableDomains([]);
+      }
+    };
+    fetchDomains();
+  }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setMessage(null)
 
+    const fullEmail = isSignUp ? `${username.toLowerCase().trim()}@${selectedDomain}` : username.trim();
+
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback`,
-          },
+        // Use a custom API route for signup to bypass email confirmation using service role
+        const response = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: fullEmail, password, username: username.toLowerCase().trim() }),
         })
-        if (error) throw error
-        setMessage({ type: 'success', text: 'Account created! Please check your email to confirm.' })
+
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error || 'Signup failed')
+
+        // If signup success, sign in immediately
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: fullEmail,
+          password,
+        })
+        if (signInError) throw signInError
+
+        setMessage({ type: 'success', text: 'Account created! Logging you in...' })
+        setTimeout(() => {
+          window.location.href = '/?auth=success'
+        }, 1000)
       } else {
+        // Sign in logic
         const { error } = await supabase.auth.signInWithPassword({
-          email,
+          email: username.includes('@') ? username : `${username}@${selectedDomain}`, // Fallback if they just type username
           password,
         })
         if (error) throw error
         
-        // Force session refresh and wait a bit for state to propagate
         await supabase.auth.getSession()
         router.refresh()
         setTimeout(() => {
@@ -53,22 +91,10 @@ function LoginContent() {
       }
     } catch (error: unknown) {
       const err = error as Error;
-      setMessage({ type: 'error', text: err.message })
+      setMessage({ type: 'error', text: err.message === 'User already registered' ? 'This address is already in use' : err.message })
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleGoogleLogin = async () => {
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback`,
-      },
-    })
-    if (error) setMessage({ type: 'error', text: error.message })
-    setLoading(false)
   }
 
   return (
@@ -87,36 +113,38 @@ function LoginContent() {
               {isSignUp ? 'Create Account' : 'Welcome Back'}
             </h1>
             <p className="text-gray-400 text-sm">
-              {isSignUp ? 'Start your journey with premium temporary mail' : 'Login to manage your premium domains'}
+              {isSignUp ? 'Choose your professional disposable address' : 'Login to your professional inbox'}
             </p>
           </div>
 
-          <button
-            onClick={handleGoogleLogin}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-white text-black font-bold hover:bg-gray-100 transition-all active:scale-[0.98] disabled:opacity-50"
-          >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Chrome className="w-5 h-5" />}
-            Continue with Google
-          </button>
-
-          <div className="relative flex items-center py-2">
-            <div className="flex-grow border-t border-white/10"></div>
-            <span className="flex-shrink mx-4 text-gray-500 text-[10px] uppercase font-bold tracking-widest">or email & password</span>
-            <div className="flex-grow border-t border-white/10"></div>
-          </div>
-
           <form onSubmit={handleAuth} className="space-y-4">
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-              <input
-                type="email"
-                placeholder="Email address"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-[var(--color-brand-pink)] transition-all outline-none text-white text-sm"
-              />
+            <div className="flex flex-col gap-3">
+              <div className="relative flex items-center">
+                <Mail className="absolute left-4 w-5 h-5 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder={isSignUp ? "Username" : "Email or Username"}
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-[var(--color-brand-pink)] transition-all outline-none text-white text-sm"
+                />
+              </div>
+
+              {isSignUp && (
+                <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-white/5 border border-white/10 transition-all">
+                  <span className="pl-4 text-gray-500 font-bold text-xl">@</span>
+                  <select
+                    value={selectedDomain}
+                    onChange={(e) => setSelectedDomain(e.target.value)}
+                    className="flex-1 bg-transparent text-white text-sm font-bold py-2.5 outline-none cursor-pointer"
+                  >
+                    {availableDomains.map(d => (
+                      <option key={d} value={d} className="bg-[#050505]">{d}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
             
             <div className="relative">
