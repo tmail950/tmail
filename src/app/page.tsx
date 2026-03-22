@@ -51,7 +51,9 @@ export default function Home() {
     let mounted = true;
 
     const loadDomains = async () => {
-      console.log("DOMAINS: Starting background fetch...");
+      console.log("DOMAINS: Starting background fetch (waiting for auth settle)...");
+      // Add a small 300ms delay to let the auth lock settle
+      await new Promise(r => setTimeout(r, 300));
       const domains = await fetchDomains();
       if (mounted) {
         setVerifiedDomains(domains);

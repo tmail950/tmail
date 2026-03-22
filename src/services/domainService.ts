@@ -218,9 +218,9 @@ export const domainService = {
     return data as DomainRecord[]
   },
 
-  async listPublicDomains() {
+  async listPublicDomains(retries = 3): Promise<DomainRecord[]> {
     try {
-      console.log("DOMAIN-SERVICE: Fetching approved domains...");
+      console.log(`DOMAIN-SERVICE: Fetching approved domains (Attempt ${4 - retries})...`);
       const { data, error } = await supabase
         .from('user_domains')
         .select('*')
@@ -229,12 +229,22 @@ export const domainService = {
         .order('created_at', { ascending: false })
       
       if (error) {
+        if (error.name === 'AbortError' && retries > 0) {
+          console.warn("DOMAIN-SERVICE: Lock conflict (AbortError). Retrying in 500ms...");
+          await new Promise(r => setTimeout(r, 500));
+          return this.listPublicDomains(retries - 1);
+        }
         console.error("DOMAIN-SERVICE: Fetch error:", error);
         return [];
       }
       console.log("DOMAIN-SERVICE: Domains found:", data?.length || 0);
       return (data as DomainRecord[]) || [];
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === 'AbortError' && retries > 0) {
+        console.warn("DOMAIN-SERVICE: Catching AbortError. Retrying...");
+        await new Promise(r => setTimeout(r, 500));
+        return this.listPublicDomains(retries - 1);
+      }
       console.error("DOMAIN-SERVICE: Critical error:", err);
       return [];
     }
