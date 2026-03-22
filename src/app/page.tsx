@@ -46,66 +46,67 @@ export default function Home() {
     }
   }, []);
 
-  // 2. Initial Setup Effect
+  // 2. Domain Fetching (Background)
   useEffect(() => {
     if (authLoading) return;
     let mounted = true;
 
-    const init = async () => {
-      setIsInitialLoading(true);
-      console.log("INITIAL-INIT: Supabase check:", !!supabase.auth);
-      
-      // Safety timeout to prevent infinite loading
-      const timeoutId = setTimeout(() => {
-        if (mounted) {
-          console.warn("INITIAL-INIT: Safety protocol triggered - forcing load status to false.");
-          setIsInitialLoading(false);
-        }
-      }, 2500); // Shortened to 2.5s for super fast feel
-
-      try {
-        const allDomains = await fetchDomains();
-        if (!mounted) return;
-        
-        setVerifiedDomains(allDomains);
-        console.log("INITIAL-INIT: Domains fetched:", allDomains.length);
-
-        // Handle address restoration or generation
-        const storedAddress = localStorage.getItem("quamify_active_email");
-        const forceNew = sessionStorage.getItem("forceNewQuamifyEmail");
-
-        let finalPrefix = "";
-        let finalDomain = "";
-
-        if (forceNew === "true" || !storedAddress || !storedAddress.includes("@")) {
-          finalPrefix = generateRandomString(10);
-          finalDomain = allDomains.length > 0 ? allDomains[0].domain_name : "";
-          setIsAuto(true);
-          sessionStorage.removeItem("forceNewQuamifyEmail");
-        } else {
-          const [storedPrefix, storedDom] = storedAddress.split("@");
-          // Verify stored domain is still valid
-          const isValid = allDomains.some(d => d.domain_name === storedDom);
-          finalPrefix = storedPrefix;
-          finalDomain = isValid ? storedDom : (allDomains.length > 0 ? allDomains[0].domain_name : "");
-          setIsAuto(false);
-        }
-
-        setPrefix(finalPrefix);
-        setSelectedDomain(finalDomain);
-      } catch (err) {
-        console.error("INITIAL-INIT: Critical init error:", err);
-      } finally {
-        if (mounted) {
-          clearTimeout(timeoutId);
-          setIsInitialLoading(false);
-        }
+    const loadDomains = async () => {
+      console.log("DOMAINS: Starting background fetch...");
+      const domains = await fetchDomains();
+      if (mounted) {
+        setVerifiedDomains(domains);
+        console.log("DOMAINS: Sync complete. Count:", domains.length);
       }
     };
-    
-    init();
+
+    loadDomains();
     return () => { mounted = false; };
-  }, [fetchDomains]); // Removed user dependency to avoid redundant re-runs if session is stable
+  }, [authLoading, fetchDomains]);
+
+  // 3. Initial UI Calibration (Speed Focused)
+  useEffect(() => {
+    if (authLoading) return;
+    let mounted = true;
+    
+    // Fast calibration experience
+    const calibrationTimer = setTimeout(() => {
+      if (mounted) setIsInitialLoading(false);
+    }, 800); 
+
+    return () => { 
+      mounted = false; 
+      clearTimeout(calibrationTimer);
+    };
+  }, [authLoading]);
+
+  // 4. Address Restoration & Selection Sync
+  useEffect(() => {
+    if (authLoading) return;
+    
+    const storedAddress = localStorage.getItem("quamify_active_email");
+    const forceNew = sessionStorage.getItem("forceNewQuamifyEmail");
+
+    if (forceNew === "true" || !storedAddress || !storedAddress.includes("@")) {
+      setPrefix(generateRandomString(10));
+      setIsAuto(true);
+      sessionStorage.removeItem("forceNewQuamifyEmail");
+    } else {
+      const [storedPrefix, storedDom] = storedAddress.split("@");
+      setPrefix(storedPrefix);
+      setSelectedDomain(storedDom);
+      setIsAuto(false);
+    }
+  }, [authLoading]);
+
+  // 5. Dynamic Selection Sync (Ensures selectedDomain is valid)
+  useEffect(() => {
+    if (verifiedDomains.length > 0) {
+      if (!selectedDomain || !verifiedDomains.some(d => d.domain_name === selectedDomain)) {
+        setSelectedDomain(verifiedDomains[0].domain_name);
+      }
+    }
+  }, [verifiedDomains, selectedDomain]);
 
   // 3. Address Calculation (Memoized)
   const address = useMemo(() => {
