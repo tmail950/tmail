@@ -114,20 +114,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      console.log("Authentication termination sequence initiated...");
+      console.log("AUTH: Termination sequence initiated...");
       
-      // 1. Clear Supabase session
-      await supabase.auth.signOut();
+      // 1. Clear Supabase session (non-blocking for UX)
+      supabase.auth.signOut().catch(e => console.error("AUTH: Supabase signOut failed:", e));
       
       // 2. Explicitly wipe all local and session storage
+      console.log("AUTH: Purging local memory caches...");
       localStorage.clear();
       sessionStorage.clear();
       
-      // 3. Force redirect to login with a hard reload to clear any memory-leaked state
+      // 3. Force redirect with a hard reload
+      console.log("AUTH: Force redirecting to portal...");
       window.location.href = '/login?logout=success';
+      
+      // Final fallback if href takes time
+      setTimeout(() => {
+        window.location.replace('/login');
+      }, 1000);
     } catch (error) {
-      console.error('Error during authentication termination:', error);
-      // Fallback redirect even on failure
+      console.error('AUTH: Critical termination failure:', error);
       window.location.href = '/login';
     }
   };
