@@ -1,4 +1,4 @@
-import { useState, memo } from "react";
+import { useState, useEffect } from "react";
 import { Wand2, Copy, Check, Globe, Zap } from 'lucide-react';
 import { motion } from "framer-motion";
 import { type DomainRecord } from "@/services/domainService";
@@ -15,7 +15,7 @@ interface HeroAddressProps {
   onSimulate?: () => void;
 }
 
-const HeroAddress = memo(({ 
+const HeroAddress = ({ 
   emailAddress, 
   prefix, 
   onPrefixChange, 
@@ -141,7 +141,6 @@ const HeroAddress = memo(({
       </div>
     </motion.div>
   );
-});
+};
 
-HeroAddress.displayName = "HeroAddress";
 export default HeroAddress;

@@ -91,17 +91,14 @@ const HeaderContent = memo(() => {
             user ? (
               <div className="flex items-center gap-2 sm:gap-4 sm:pl-4 sm:border-l border-white/10 relative">
                 {/* Dedicated Logout Button - Always Visible for Auth Reliability */}
-                <button 
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    await signOut();
-                  }}
-                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest transition-all border border-red-500/10 cursor-pointer mr-2"
+                <a 
+                  href="/api/auth/signout"
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest transition-all border border-red-500/10 mr-2"
                   title="Force Sign Out"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   Sign Out
-                </button>
+                </a>
 
                 <button 
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -211,16 +208,13 @@ const HeaderContent = memo(() => {
                    </div>
 
                     <div className="grid grid-cols-1 gap-2 px-1">
-                      <button 
-                         onClick={async () => {
-                           setIsMobileMenuOpen(false);
-                           await signOut();
-                         }}
+                      <a 
+                         href="/api/auth/signout"
                          className="flex items-center justify-center gap-2 py-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-black uppercase tracking-[0.2em] transition-all border border-red-500/10"
                        >
                          <LogOut className="w-4 h-4" />
                          Sign Out Permanently
-                       </button>
+                       </a>
                        
                        <button 
                          onClick={handleDeleteAccount}
