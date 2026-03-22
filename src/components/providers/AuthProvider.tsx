@@ -79,7 +79,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const mounted = true
     const failsafe = setTimeout(() => {
       if (isLoading) {
         console.warn("AUTH: Failsafe triggered - forcing isLoading to false.")

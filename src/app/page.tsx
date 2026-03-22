@@ -28,7 +28,6 @@ export default function Home() {
   const [verifiedDomains, setVerifiedDomains] = useState<DomainRecord[]>([]);
   const [selectedDomain, setSelectedDomain] = useState<string>("");
   const [isAuto, setIsAuto] = useState(true);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // 1. Fetch Domains Logic
   const fetchDomains = useCallback(async () => {
@@ -150,27 +149,20 @@ export default function Home() {
   return (
     <div className="flex flex-col h-[calc(100vh-120px)] w-full max-w-7xl mx-auto space-y-6 flex-1 px-4 sm:px-0">
       <div className="flex-1 flex flex-col items-center justify-start py-8 sm:py-16">
-        {isInitialLoading ? (
-          <div className="flex flex-col items-center gap-4 py-20">
-            <Loader2 className="w-12 h-12 text-[var(--color-brand-pink)] animate-spin" />
-            <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.3em]">Calibrating Holographic Grid...</p>
-          </div>
-        ) : (
-          <HeroAddress 
-            emailAddress={address} 
-            prefix={prefix}
-            onPrefixChange={(val) => {
-              setPrefix(val);
-              setIsAuto(false);
-            }}
-            onAutoGenerate={handleAutoGenerate}
-            isAuto={isAuto}
-            selectedDomain={selectedDomain}
-            verifiedDomains={verifiedDomains}
-            onDomainChange={handleDomainChange}
-            onSimulate={simulateEmail}
-          />
-        )}
+        <HeroAddress 
+          emailAddress={address} 
+          prefix={prefix}
+          onPrefixChange={(val) => {
+            setPrefix(val);
+            setIsAuto(false);
+          }}
+          onAutoGenerate={handleAutoGenerate}
+          isAuto={isAuto}
+          selectedDomain={selectedDomain}
+          verifiedDomains={verifiedDomains}
+          onDomainChange={handleDomainChange}
+          onSimulate={simulateEmail}
+        />
       </div>
 
       <div className="flex-1 min-h-0 border border-white/10 rounded-3xl overflow-hidden glass-panel flex flex-col shadow-2xl relative mb-8">
