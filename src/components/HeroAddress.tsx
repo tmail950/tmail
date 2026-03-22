@@ -28,6 +28,10 @@ const HeroAddress = memo(({
 }: HeroAddressProps) => {
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    console.log("HERO-ADDRESS: State Check -> Domains:", verifiedDomains.length, "Selected:", selectedDomain);
+  }, [verifiedDomains, selectedDomain]);
+
   const handleCopy = () => {
     if (!emailAddress) return;
     navigator.clipboard.writeText(emailAddress);
