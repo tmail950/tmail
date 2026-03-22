@@ -220,16 +220,23 @@ export const domainService = {
 
   async listPublicDomains() {
     try {
+      console.log("DOMAIN-SERVICE: Fetching approved domains...");
       const { data, error } = await supabase
         .from('user_domains')
         .select('*')
         .eq('admin_approval', 'approved')
         .eq('is_verified', true)
         .order('created_at', { ascending: false })
-      if (error) throw error
-      return (data as DomainRecord[]) || []
-    } catch (e) {
-      return []
+      
+      if (error) {
+        console.error("DOMAIN-SERVICE: Fetch error:", error);
+        return [];
+      }
+      console.log("DOMAIN-SERVICE: Domains found:", data?.length || 0);
+      return (data as DomainRecord[]) || [];
+    } catch (err) {
+      console.error("DOMAIN-SERVICE: Critical error:", err);
+      return [];
     }
   },
 

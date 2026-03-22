@@ -67,14 +67,20 @@ const HeroAddress = memo(({
               <select 
                 value={selectedDomain}
                 onChange={(e) => onDomainChange(e.target.value)}
-                className="w-full sm:w-auto bg-white/5 hover:bg-white/10 text-base sm:text-lg font-bold text-gray-300 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl outline-none cursor-pointer appearance-none transition-all text-center sm:text-left"
+                className="w-full sm:w-auto bg-white/5 hover:bg-white/10 text-base sm:text-lg font-bold text-gray-300 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl outline-none cursor-pointer appearance-none transition-all text-center sm:text-left min-w-[140px]"
               >
-                <option value={selectedDomain} className="bg-[#050505]">{selectedDomain}</option>
-                {verifiedDomains
-                  .filter(d => d.domain_name !== selectedDomain)
-                  .map(d => (
-                    <option key={d.id} value={d.domain_name} className="bg-[#050505]">{d.domain_name}</option>
-                  ))}
+                {verifiedDomains.length > 0 ? (
+                  <>
+                    <option value={selectedDomain} className="bg-[#050505]">{selectedDomain || "Select Domain"}</option>
+                    {verifiedDomains
+                      .filter(d => d.domain_name !== selectedDomain)
+                      .map(d => (
+                        <option key={d.id} value={d.domain_name} className="bg-[#050505]">{d.domain_name}</option>
+                      ))}
+                  </>
+                ) : (
+                  <option value="" className="bg-[#050505]">No Approved Domains</option>
+                )}
               </select>
             </div>
 
