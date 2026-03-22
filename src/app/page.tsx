@@ -52,35 +52,54 @@ export default function Home() {
 
     const init = async () => {
       setIsInitialLoading(true);
-      const allDomains = await fetchDomains();
-      if (!mounted) return;
+      console.log("INITIAL-INIT: Supabase check:", !!supabase.auth);
       
-      setVerifiedDomains(allDomains);
+      // Safety timeout to prevent infinite loading
+      const timeoutId = setTimeout(() => {
+        if (mounted) {
+          console.warn("INITIAL-INIT: Timeout reached, forcing load = false");
+          setIsInitialLoading(false);
+        }
+      }, 5000);
 
-      // Handle address restoration or generation
-      const storedAddress = localStorage.getItem("quamify_active_email");
-      const forceNew = sessionStorage.getItem("forceNewQuamifyEmail");
+      try {
+        const allDomains = await fetchDomains();
+        if (!mounted) return;
+        
+        setVerifiedDomains(allDomains);
+        console.log("INITIAL-INIT: Domains fetched:", allDomains.length);
 
-      let finalPrefix = "";
-      let finalDomain = "";
+        // Handle address restoration or generation
+        const storedAddress = localStorage.getItem("quamify_active_email");
+        const forceNew = sessionStorage.getItem("forceNewQuamifyEmail");
 
-      if (forceNew === "true" || !storedAddress || !storedAddress.includes("@")) {
-        finalPrefix = generateRandomString(10);
-        finalDomain = allDomains.length > 0 ? allDomains[0].domain_name : "";
-        setIsAuto(true);
-        sessionStorage.removeItem("forceNewQuamifyEmail");
-      } else {
-        const [storedPrefix, storedDom] = storedAddress.split("@");
-        // Verify stored domain is still valid
-        const isValid = allDomains.some(d => d.domain_name === storedDom);
-        finalPrefix = storedPrefix;
-        finalDomain = isValid ? storedDom : (allDomains.length > 0 ? allDomains[0].domain_name : "");
-        setIsAuto(false);
+        let finalPrefix = "";
+        let finalDomain = "";
+
+        if (forceNew === "true" || !storedAddress || !storedAddress.includes("@")) {
+          finalPrefix = generateRandomString(10);
+          finalDomain = allDomains.length > 0 ? allDomains[0].domain_name : "";
+          setIsAuto(true);
+          sessionStorage.removeItem("forceNewQuamifyEmail");
+        } else {
+          const [storedPrefix, storedDom] = storedAddress.split("@");
+          // Verify stored domain is still valid
+          const isValid = allDomains.some(d => d.domain_name === storedDom);
+          finalPrefix = storedPrefix;
+          finalDomain = isValid ? storedDom : (allDomains.length > 0 ? allDomains[0].domain_name : "");
+          setIsAuto(false);
+        }
+
+        setPrefix(finalPrefix);
+        setSelectedDomain(finalDomain);
+      } catch (err) {
+        console.error("INITIAL-INIT: Critical init error:", err);
+      } finally {
+        if (mounted) {
+          clearTimeout(timeoutId);
+          setIsInitialLoading(false);
+        }
       }
-
-      setPrefix(finalPrefix);
-      setSelectedDomain(finalDomain);
-      setIsInitialLoading(false);
     };
     
     init();
