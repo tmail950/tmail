@@ -22,7 +22,7 @@ function generateRandomString(length: number) {
 }
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [prefix, setPrefix] = useState<string>("");
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [verifiedDomains, setVerifiedDomains] = useState<DomainRecord[]>([]);
@@ -48,6 +48,7 @@ export default function Home() {
 
   // 2. Initial Setup Effect
   useEffect(() => {
+    if (authLoading) return;
     let mounted = true;
 
     const init = async () => {
