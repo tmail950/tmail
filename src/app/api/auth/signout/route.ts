@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // 1. Check if we have a session to end
   const { data: { session } } = await supabase.auth.getSession()
