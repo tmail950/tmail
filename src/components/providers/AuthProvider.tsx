@@ -35,9 +35,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!userEmail) return false
       
       try {
-        // Direct fetch from Supabase to check admin status
-        // This assumes RLS is set up to allow users to read their own admin flag 
-        // or a public/authenticated table for admin checks
         const { data, error } = await supabase
           .from('admins')
           .select('email')
@@ -45,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single()
         
         if (error) {
+          console.warn("AUTH: Admin check failed (Normal result for non-admins):", error.message);
           // Fallback for master admins
           const masterAdmins = ['info369skills@gmail.com', 'danubaba369@gmail.com']
           return masterAdmins.includes(userEmail)
@@ -52,7 +50,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         return !!data
       } catch (e) {
-        return false
+        console.warn("AUTH: Identity verification bypass triggered (406+).");
+        return false;
       }
     }
 

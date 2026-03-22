@@ -57,10 +57,10 @@ export default function Home() {
       // Safety timeout to prevent infinite loading
       const timeoutId = setTimeout(() => {
         if (mounted) {
-          console.warn("INITIAL-INIT: Timeout reached, forcing load = false");
+          console.warn("INITIAL-INIT: Safety protocol triggered - forcing load status to false.");
           setIsInitialLoading(false);
         }
-      }, 5000);
+      }, 2500); // Shortened to 2.5s for super fast feel
 
       try {
         const allDomains = await fetchDomains();
