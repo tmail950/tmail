@@ -63,12 +63,13 @@ export async function POST(request: Request) {
     }
 
     // 5. Setup Email Routing (Worker & DNS)
-    const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-ingest-worker';
+    const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-email-worker';
+    console.log(`CLOUDFLARE: Setting up Email Routing for zone ${zone.id} with worker ${workerName}`);
     try {
       await cloudflare.setupEmailRouting(zone.id, workerName);
       await cloudflare.setupEmailDNS(zone.id);
-    } catch (e) {
-      console.error('Email routing setup failed:', e);
+    } catch (e: any) {
+      console.error('CLOUDFLARE: Email routing setup failed:', e.message);
     }
 
     // 6. Best effort TXT record

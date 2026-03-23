@@ -32,6 +32,7 @@ export default function Home() {
   const [userEmails, setUserEmails] = useState<any[]>([]);
   const [isSavingEmail, setIsSavingEmail] = useState(false);
   const [isDomainLoading, setIsDomainLoading] = useState(true);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // 1. Fetch Domains Logic
   const fetchDomains = useCallback(async () => {
@@ -125,21 +126,38 @@ export default function Home() {
 
   // 4. Address Restoration & Selection Sync
   useEffect(() => {
-    // We can restore from localStorage even if auth is still loading
+    if (authLoading) return;
+
     const storedAddress = localStorage.getItem("quamify_active_email");
     const forceNew = sessionStorage.getItem("forceNewQuamifyEmail");
 
+    // Case 1: Force new or no stored address
     if (forceNew === "true" || !storedAddress || !storedAddress.includes("@")) {
-      setPrefix(generateRandomString(10));
-      setIsAuto(true);
+      if (user && userEmails.length > 0) {
+        // Use first saved address if available
+        const [storedPrefix, storedDom] = userEmails[0].email_address.split("@");
+        setPrefix(storedPrefix);
+        setSelectedDomain(storedDom);
+        setIsAuto(false);
+      } else if (user?.email) {
+        // Use login email prefix for new user
+        const loginPrefix = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        setPrefix(loginPrefix);
+        setIsAuto(false);
+      } else {
+        // Generate random guest address
+        setPrefix(generateRandomString(10));
+        setIsAuto(true);
+      }
       sessionStorage.removeItem("forceNewQuamifyEmail");
     } else {
+      // Case 2: Restore from localStorage
       const [storedPrefix, storedDom] = storedAddress.split("@");
       setPrefix(storedPrefix);
       setSelectedDomain(storedDom);
       setIsAuto(false);
     }
-  }, [authLoading]);
+  }, [authLoading, user, userEmails]);
 
   // 5. Dynamic Selection Sync (Ensures selectedDomain is valid)
   useEffect(() => {
@@ -191,10 +209,13 @@ export default function Home() {
   const handleSaveEmail = useCallback(async () => {
     if (!user || !address || isSavingEmail) return;
     setIsSavingEmail(true);
+    setSaveError(null);
     try {
       await domainService.associateEmail(user.id, address);
       await fetchUserEmails();
-    } catch (err) {
+      console.log("UI: Holographic address reserved successfully.");
+    } catch (err: any) {
+      setSaveError(err.message || "Reservation failure.");
       console.error("Save email error:", err);
     } finally {
       setIsSavingEmail(false);
@@ -250,6 +271,7 @@ export default function Home() {
           isSaving={isSavingEmail}
           isLoggedIn={!!user}
           isDomainLoading={isDomainLoading}
+          error={saveError}
         />
       </div>
 

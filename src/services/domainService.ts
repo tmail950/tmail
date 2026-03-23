@@ -246,17 +246,27 @@ export const domainService = {
   },
 
   async associateEmail(userId: string, address: string, domainId?: string) {
-    const { data, error } = await supabase
-      .from('user_emails')
-      .upsert({ 
-        user_id: userId, 
-        email_address: address.toLowerCase().trim()
-      })
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('user_emails')
+        .insert({ 
+          user_id: userId, 
+          email_address: address.toLowerCase().trim()
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('This holographic address is already reserved by another member.');
+        }
+        throw error;
+      }
+      return data;
+    } catch (err: any) {
+      console.error("ASSOCIATE-EMAIL: Failure:", err.message);
+      throw err;
+    }
   },
 
   async deletePlatformDomain(id: string) {

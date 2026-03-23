@@ -19,6 +19,7 @@ interface HeroAddressProps {
   isSaving?: boolean;
   isLoggedIn?: boolean;
   isDomainLoading?: boolean;
+  error?: string | null;
 }
 
 const HeroAddress = ({ 
@@ -36,7 +37,8 @@ const HeroAddress = ({
   savedAddresses = [],
   isSaving = false,
   isLoggedIn = false,
-  isDomainLoading = false
+  isDomainLoading = false,
+  error = null
 }: HeroAddressProps) => {
   const [copied, setCopied] = useState(false);
 
@@ -101,6 +103,16 @@ const HeroAddress = ({
                 )}
               </select>
             </div>
+
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-red-400 text-[10px] font-bold uppercase tracking-widest bg-red-500/10 border border-red-500/20 px-6 py-3 rounded-2xl mx-auto max-w-md"
+              >
+                {error}
+              </motion.div>
+            )}
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-4 w-full">
               <button
