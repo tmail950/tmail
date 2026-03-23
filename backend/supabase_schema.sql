@@ -20,6 +20,11 @@ CREATE POLICY "Users can view their own domains"
     ON user_domains FOR SELECT 
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Anyone can view verified domains" ON user_domains;
+CREATE POLICY "Anyone can view verified domains" 
+    ON user_domains FOR SELECT 
+    USING (is_verified = true AND admin_approval = 'approved');
+
 DROP POLICY IF EXISTS "Users can insert their own domains" ON user_domains;
 CREATE POLICY "Users can insert their own domains" 
     ON user_domains FOR INSERT 

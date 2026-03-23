@@ -18,6 +18,7 @@ interface HeroAddressProps {
   savedAddresses?: string[];
   isSaving?: boolean;
   isLoggedIn?: boolean;
+  isDomainLoading?: boolean;
 }
 
 const HeroAddress = ({ 
@@ -34,7 +35,8 @@ const HeroAddress = ({
   onSwitchAddress,
   savedAddresses = [],
   isSaving = false,
-  isLoggedIn = false
+  isLoggedIn = false,
+  isDomainLoading = false
 }: HeroAddressProps) => {
   const [copied, setCopied] = useState(false);
 
@@ -93,7 +95,9 @@ const HeroAddress = ({
                       ))}
                   </>
                 ) : (
-                  <option value="" className="bg-[#050505]">No Approved Domains</option>
+                  <option value="" className="bg-[#050505]">
+                    {isDomainLoading ? "Calibrating Domains..." : "No Approved Domains"}
+                  </option>
                 )}
               </select>
             </div>

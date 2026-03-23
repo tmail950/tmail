@@ -212,13 +212,17 @@ const HeaderContent = memo(() => {
                    </div>
 
                     <div className="grid grid-cols-1 gap-2 px-1">
-                       <a 
-                          href="/api/auth/signout"
+                        <button 
+                          onClick={() => {
+                            localStorage.clear();
+                            sessionStorage.clear();
+                            window.location.href = '/api/auth/signout';
+                          }}
                           className="flex items-center justify-center gap-2 py-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-[0.2em] transition-all shadow-[0_0_20px_rgba(220,38,38,0.4)] border border-white/10"
                         >
                           <LogOut className="w-4 h-4" />
                           Sign Out Permanently
-                        </a>
+                        </button>
                        
                        <button 
                          onClick={handleDeleteAccount}

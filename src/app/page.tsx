@@ -31,6 +31,7 @@ export default function Home() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [userEmails, setUserEmails] = useState<any[]>([]);
   const [isSavingEmail, setIsSavingEmail] = useState(false);
+  const [isDomainLoading, setIsDomainLoading] = useState(true);
 
   // 1. Fetch Domains Logic
   const fetchDomains = useCallback(async () => {
@@ -60,6 +61,7 @@ export default function Home() {
       const domains = await fetchDomains();
       if (mounted) {
         setVerifiedDomains(domains);
+        setIsDomainLoading(false);
         console.log("DOMAINS: Sync complete. Count:", domains.length);
       }
     };
@@ -247,6 +249,7 @@ export default function Home() {
           onSaveAddress={handleSaveEmail}
           isSaving={isSavingEmail}
           isLoggedIn={!!user}
+          isDomainLoading={isDomainLoading}
         />
       </div>
 
