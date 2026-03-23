@@ -45,7 +45,8 @@ export default function UserDomains() {
     }
     
     // Strict Admin Protection: Only master admin can access domain management
-    if (user.email !== 'info369skills@gmail.com') {
+    const authorizedAdmins = ['info369skills@gmail.com', 'danubaba369@gmail.com'];
+    if (!authorizedAdmins.includes(user.email || '')) {
       router.push("/")
       return
     }

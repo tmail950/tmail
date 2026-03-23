@@ -33,17 +33,15 @@ const HeaderContent = memo(() => {
     }
   };
 
-  const isMasterAdmin = user?.email === 'info369skills@gmail.com';
-
   const navLinks = useMemo(() => [
     { href: "/", label: "Home", icon: Home, active: pathname === "/" },
     { href: "/safety", label: "Safety", icon: ShieldCheck, active: pathname === "/safety" },
     { href: "/terms", label: "Terms", icon: FileText, active: pathname === "/terms" },
-    ...(isMasterAdmin ? [
+    ...(isAdmin ? [
       { href: "/domains", label: "Domains", icon: Globe, active: pathname === "/domains", isAdmin: true },
       { href: "/admin/settings", label: "Settings", icon: Shield, active: pathname === '/admin/settings', isAdmin: true }
     ] : []),
-  ], [pathname, isMasterAdmin]);
+  ], [pathname, isAdmin]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 p-4">

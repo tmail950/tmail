@@ -14,15 +14,26 @@ export async function DELETE() {
     const adminClient = createAdminClient()
     const userEmail = user.email
 
-    // 1. Delete all received emails for this user
-    if (userEmail) {
+    // 1. Fetch all reserved holographic addresses
+    const { data: reservedAddresses } = await adminClient
+      .from('user_emails')
+      .select('email_address')
+      .eq('user_id', user.id);
+    
+    const addressesToPurge = [
+      user.email,
+      ...(reservedAddresses?.map(r => r.email_address) || [])
+    ].filter(Boolean) as string[];
+
+    // 2. Transhumanist Purge: Delete all emails for ANY of the user's addresses
+    if (addressesToPurge.length > 0) {
       const { error: emailDeleteError } = await adminClient
         .from('emails')
         .delete()
-        .eq('recipient_address', userEmail)
+        .in('recipient_address', addressesToPurge);
       
       if (emailDeleteError) {
-        console.error('Failed to delete emails:', emailDeleteError)
+        console.error('Failed to delete holographic transmissions:', emailDeleteError);
       }
     }
 

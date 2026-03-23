@@ -38,6 +38,7 @@ export async function POST(request: Request) {
     // 1. Clean domain name
     const cleanDomain = domainName
       .toLowerCase()
+      .trim()
       .replace(/^https?:\/\//, '')
       .replace(/\/$/, '')
       .split('/')[0];
@@ -45,7 +46,12 @@ export async function POST(request: Request) {
     // 2. Generate Verification Token
     const verificationToken = `quamify-verify-${Math.random().toString(36).substring(2, 15)}`;
 
-    const isAdmin = session.user.email === 'info369skills@gmail.com';
+    // Get valid admins from settings or hardcoded fallback
+    const settings = await supabase.from('site_settings').select('value').eq('key', 'admin_email').single();
+    const masterAdmin = settings.data?.value || 'info369skills@gmail.com';
+    const isAdmin = session.user.email === masterAdmin || 
+                    session.user.email === 'info369skills@gmail.com' || 
+                    session.user.email === 'danubaba369@gmail.com';
 
     if (!isAutoApprove && !isAdmin) {
       // Manual approval mode: Just insert the domain as pending

@@ -35,7 +35,8 @@ export async function POST(request: Request) {
         // Automatically setup Email Routing if not already done
         if (domain.cloudflare_status !== 'active') {
           try {
-            await cloudflare.setupEmailRouting(zone.id, process.env.CLOUDFLARE_WORKER_NAME!);
+            const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-email-worker';
+            await cloudflare.setupEmailRouting(zone.id, workerName);
             await cloudflare.setupEmailDNS(zone.id);
             await supabase
               .from('user_domains')
