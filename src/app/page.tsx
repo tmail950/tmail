@@ -207,7 +207,16 @@ export default function Home() {
   }, [address]);
 
   const handleSaveEmail = useCallback(async () => {
-    if (!user || !address || isSavingEmail) return;
+    if (!user) {
+      setSaveError("Please sign in to activate your holographic inbox.");
+      return;
+    }
+    if (!address || !address.includes('@') || address.endsWith('@')) {
+      setSaveError("Please select a domain before activating.");
+      return;
+    }
+    if (isSavingEmail) return;
+
     setIsSavingEmail(true);
     setSaveError(null);
     try {
@@ -215,7 +224,8 @@ export default function Home() {
       await fetchUserEmails();
       console.log("UI: Holographic address reserved successfully.");
     } catch (err: any) {
-      setSaveError(err.message || "Reservation failure.");
+      const msg = err.message || "Activation failure.";
+      setSaveError(msg);
       console.error("Save email error:", err);
     } finally {
       setIsSavingEmail(false);
