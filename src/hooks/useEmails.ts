@@ -14,6 +14,11 @@ export function useEmails(recipientAddress: string | null) {
       return;
     }
 
+    // Safety timeout to prevent infinite spinner
+    const timeout = setTimeout(() => {
+      if (isMounted) setIsLoading(false);
+    }, 5000);
+
     try {
       if (isMounted) setIsLoading(true);
       const { data, error } = await supabase
@@ -28,7 +33,9 @@ export function useEmails(recipientAddress: string | null) {
         setEmails(data as Email[]);
       }
     } catch (err) {
+      console.error("Fetch emails error:", err);
     } finally {
+      clearTimeout(timeout);
       if (isMounted) setIsLoading(false);
     }
   }, [recipientAddress]);
