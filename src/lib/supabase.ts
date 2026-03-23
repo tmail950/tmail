@@ -4,11 +4,19 @@ import { createClient } from './supabase/client';
 // during build time when process.env is not yet available.
 let instance: any = null;
 
-export const supabase = new Proxy({} as any, {
-  get: (target, prop) => {
-    if (!instance) {
-      instance = createClient();
+export const supabase = {
+  get auth() { return getInstance().auth },
+  from: (table: string) => getInstance().from(table),
+  rpc: (name: string, args?: any) => getInstance().rpc(name, args),
+  get rest() { return getInstance().rest }
+};
+
+function getInstance() {
+  if (!instance) {
+    if (typeof window !== 'undefined') {
+      console.log("SUPABASE: Initializing singleton browser client...");
     }
-    return instance[prop];
+    instance = createClient();
   }
-});
+  return instance;
+}

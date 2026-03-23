@@ -2,7 +2,7 @@
 
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { type User, type Session } from '@supabase/supabase-js'
 
 interface AuthContextType {
@@ -22,7 +22,6 @@ const AuthContext = createContext<AuthContextType>({
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const supabase = createClient()
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
@@ -35,14 +34,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!userEmail) return false
       
       try {
-        // Hardcheck for developer/admin email
         const masterAdmins = ['info369skills@gmail.com', 'danubaba369@gmail.com', 'abc@artradering.com']
-        if (masterAdmins.includes(userEmail)) {
-          console.log("AUTH: Hardcoded admin match.")
-          return true
-        }
+        if (masterAdmins.includes(userEmail)) return true
 
-        // Attempt Supabase check (with error handling for 406/missing table)
         const { data, error } = await supabase
           .from('admins')
           .select('email')
@@ -50,34 +44,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .maybeSingle()
         
         if (error) {
-          console.warn("AUTH: Admin check failed (Normal result for non-admins):", error.message);
+          console.warn("AUTH: Admin check failed:", error.message);
           return false
         }
-        
         return !!data
       } catch (e) {
-        console.warn("AUTH: Identity verification bypass triggered (406+).");
         return false;
       }
     }
 
     const initializeAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
+        console.log("AUTH: Initializing session...");
+        const { data: { session: initialSession } } = await supabase.auth.getSession()
         
         if (mounted) {
-          setSession(session)
-          setUser(session?.user ?? null)
+          setSession(initialSession)
+          setUser(initialSession?.user ?? null)
           
-          if (session?.user) {
-            const adminStatus = await checkAdminStatus(session.user.email)
-            if (mounted) setIsAdmin(adminStatus)
+          if (initialSession?.user) {
+            checkAdminStatus(initialSession.user.email).then(status => {
+              if (mounted) setIsAdmin(status)
+            })
           } else {
             setIsAdmin(false)
           }
+          // We set isLoading to false ONLY after session is retrieved
           setIsLoading(false)
         }
       } catch (e) {
+        console.error("AUTH: Critical initialization error:", e)
         if (mounted) {
           setIsAdmin(false)
           setIsLoading(false)
@@ -86,18 +82,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const failsafe = setTimeout(() => {
-      if (isLoading) {
+      if (isLoading && mounted) {
         console.warn("AUTH: Failsafe triggered - forcing isLoading to false.")
         setIsLoading(false)
       }
-    }, 4500)
+    }, 10000)
 
     initializeAuth().finally(() => {
-      clearTimeout(failsafe)
+      if (mounted) clearTimeout(failsafe)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string, currentSession: Session | null) => {
       if (!mounted) return
+      console.log(`AUTH: Event -> ${event}`);
 
       if (event === 'SIGNED_OUT') {
         setSession(null)
@@ -111,8 +108,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentSession?.user ?? null)
 
       if (currentSession?.user) {
-        const adminStatus = await checkAdminStatus(currentSession.user.email)
-        if (mounted) setIsAdmin(adminStatus)
+        checkAdminStatus(currentSession.user.email).then(status => {
+          if (mounted) setIsAdmin(status)
+        })
       } else {
         setIsAdmin(false)
       }
@@ -123,6 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false
       subscription.unsubscribe()
+      clearTimeout(failsafe)
     }
   }, [])
 

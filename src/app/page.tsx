@@ -85,10 +85,11 @@ export default function Home() {
   }, [user]);
 
   useEffect(() => {
-    if (user) {
+    if (user && !authLoading) {
+      console.log("EMAILS: Syncing holographic reserves...");
       fetchUserEmails();
     }
-  }, [user, fetchUserEmails]);
+  }, [user, authLoading, fetchUserEmails]);
 
   // 3. Initial UI Calibration (Hard Failsafe)
   useEffect(() => {
@@ -157,7 +158,21 @@ export default function Home() {
       setSelectedDomain(storedDom);
       setIsAuto(false);
     }
-  }, [authLoading, user, userEmails]);
+  }, [authLoading, user, userEmails, verifiedDomains]);
+
+  // 4.5. Onboarding: Auto-generate first inbox if user has NO reserves
+  useEffect(() => {
+    if (user && !authLoading && verifiedDomains.length > 0 && userEmails.length === 0 && !address) {
+      console.log("LOGIN: Auto-generating initial inbox for user...");
+      handleAutoGenerate();
+      
+      // Increased delay to ensure auth lock is completely released before insertion
+      const timer = setTimeout(() => {
+        handleSaveEmail();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [user, authLoading, verifiedDomains, userEmails, address, handleSaveEmail]);
 
   // 5. Dynamic Selection Sync (Ensures selectedDomain is valid)
   useEffect(() => {
