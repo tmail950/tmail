@@ -178,6 +178,12 @@ const HeroAddress = ({
               )}
             </div>
 
+            {error && (
+              <div className="mt-4 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-[10px] uppercase tracking-wider text-center animate-bounce">
+                {error.includes("unique") ? "Address already taken. Try another." : error}
+              </div>
+            )}
+
             {/* Saved Addresses Quick Switcher */}
             {isLoggedIn && savedAddresses.length > 0 && (
               <div className="flex flex-col items-center gap-4 mt-4 py-6 border-t border-white/5">
