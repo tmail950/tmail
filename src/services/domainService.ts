@@ -259,25 +259,43 @@ export const domainService = {
   },
 
   async associateEmail(userId: string, address: string, domainId?: string) {
+    const cleanAddress = address.toLowerCase().trim();
+    console.log(`DOMAINS: Initiating reservation for ${cleanAddress} (User: ${userId})`);
+    
     try {
-      const { data, error } = await supabase
+      // Use a race to prevent infinite hanging if Supabase is unresponsive
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database timeout during reservation.')), 8000)
+      );
+
+      const dbPromise = supabase
         .from('user_emails')
         .insert({ 
           user_id: userId, 
-          email_address: address.toLowerCase().trim()
+          email_address: cleanAddress
         })
         .select()
         .single();
+
+      const { data, error } = await Promise.race([dbPromise, timeoutPromise]) as any;
       
       if (error) {
+        console.error(`DOMAINS: Reservation DB error for ${cleanAddress}:`, error.message);
         if (error.code === '23505') {
           throw new Error('This holographic address is already reserved by another member.');
         }
-        throw error;
+        throw new Error(`Database Error: ${error.message}`);
       }
+      
+      if (!data) {
+        console.error(`DOMAINS: No data returned for ${cleanAddress}`);
+        throw new Error('Failed to confirm reservation.');
+      }
+
+      console.log(`DOMAINS: Successfully reserved ${cleanAddress}`);
       return data;
     } catch (err: any) {
-      console.error("ASSOCIATE-EMAIL: Failure:", err.message);
+      console.error(`DOMAINS: Critical failure during reservation of ${cleanAddress}:`, err.message);
       throw err;
     }
   },

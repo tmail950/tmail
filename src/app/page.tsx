@@ -293,6 +293,7 @@ export default function Home() {
           onSimulate={simulateEmail}
           onSwitchAddress={handleSwitchEmail}
           onSaveAddress={handleSaveEmail}
+          savedAddresses={userEmails.map(e => e.email_address)}
           isSaving={isSavingEmail}
           isSaved={userEmails.some(e => e.email_address === address)}
           showSuccess={showSuccess}
