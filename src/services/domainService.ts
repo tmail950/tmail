@@ -218,32 +218,18 @@ export const domainService = {
     return data as DomainRecord[]
   },
 
-  async listPublicDomains(retries = 3): Promise<DomainRecord[]> {
+  async listPublicDomains(): Promise<DomainRecord[]> {
     try {
-      console.log(`DOMAIN-SERVICE: Fetching approved domains (Attempt ${4 - retries})...`);
-      const { data, error } = await supabase
-        .from('user_domains')
-        .select('*')
-        .eq('admin_approval', 'approved')
-        .eq('is_verified', true)
-        .order('created_at', { ascending: false })
-      
-      if (error) {
-        console.error("DOMAIN-SERVICE: Supabase error during fetch:", error);
-        return [];
+      console.log("DOMAIN-SERVICE: Fetching approved domains via server-side API (RLS Bypass)...");
+      const response = await fetch('/api/domains/list', { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error('Failed to fetch domains from API');
       }
+      const data = await response.json();
       console.log("DOMAIN-SERVICE: Fetched domains successfully. Total:", data?.length || 0);
-      if (data && data.length > 0) {
-        console.log("DOMAIN-SERVICE: Sample domain:", data[0].domain_name);
-      }
       return (data as DomainRecord[]) || [];
     } catch (err: any) {
-      if (err.name === 'AbortError' && retries > 0) {
-        console.warn("DOMAIN-SERVICE: Catching AbortError. Retrying...");
-        await new Promise(r => setTimeout(r, 500));
-        return this.listPublicDomains(retries - 1);
-      }
-      console.error("DOMAIN-SERVICE: Critical error:", err);
+      console.error("DOMAIN-SERVICE: Critical API error:", err);
       return [];
     }
   },
