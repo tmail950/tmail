@@ -34,6 +34,12 @@ export default function Home() {
   const [isDomainLoading, setIsDomainLoading] = useState(true);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // 0. Address Calculation (Memoized) - Declared early to avoid block-scope errors
+  const address = useMemo(() => {
+    if (!prefix || !selectedDomain) return "";
+    return `${prefix.toLowerCase().replace(/[^a-z0-9]/g, '')}@${selectedDomain}`;
+  }, [prefix, selectedDomain]);
+
   // 1. Fetch Domains Logic
   const fetchDomains = useCallback(async () => {
     try {
@@ -183,11 +189,6 @@ export default function Home() {
     }
   }, [verifiedDomains, selectedDomain]);
 
-  // 3. Address Calculation (Memoized)
-  const address = useMemo(() => {
-    if (!prefix || !selectedDomain) return "";
-    return `${prefix.toLowerCase().replace(/[^a-z0-9]/g, '')}@${selectedDomain}`;
-  }, [prefix, selectedDomain]);
 
   // 4. Persistence Effect
   useEffect(() => {
