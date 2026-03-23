@@ -95,6 +95,12 @@ export default function Home() {
       setPrefix(p);
       setSelectedDomain(d);
       setIsAuto(false);
+    } else if (user && userEmails.length === 0 && user.email && !localStorage.getItem("quamify_active_email")) {
+      // New user: Use their login email prefix as default
+      const loginPrefix = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+      setPrefix(loginPrefix);
+      setIsAuto(false);
+      console.log("UI: Set default prefix for new user from login email.");
     }
   }, [user, userEmails]);
 

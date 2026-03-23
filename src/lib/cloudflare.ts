@@ -67,13 +67,57 @@ export const cloudflare = {
 
   async addVerificationTXT(zoneId: string, token: string) {
     return this.fetch(`/zones/${zoneId}/dns_records`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({
-        type: 'TXT',
-        name: '@',
+        type: "TXT",
+        name: "@",
         content: token,
         ttl: 3600,
       }),
     });
-  }
+  },
+
+  async setupEmailDNS(zoneId: string) {
+    console.log(`CLOUDFLARE: Configuring Email DNS for zone ${zoneId}...`);
+    
+    // 1. MX Records
+    const mxRecords = [
+      { type: "MX", name: "@", content: "route1.mx.cloudflare.net", priority: 10, ttl: 3600 },
+      { type: "MX", name: "@", content: "route2.mx.cloudflare.net", priority: 20, ttl: 3600 },
+      { type: "MX", name: "@", content: "route3.mx.cloudflare.net", priority: 30, ttl: 3600 },
+    ];
+
+    for (const record of mxRecords) {
+      try {
+        await this.fetch(`/zones/${zoneId}/dns_records`, {
+          method: "POST",
+          body: JSON.stringify(record),
+        });
+      } catch (e: any) {
+        // Ignore if already exists
+        if (!e.message?.includes("already exists")) {
+          console.warn(`CLOUDFLARE: MX record creation failed: ${e.message}`);
+        }
+      }
+    }
+
+    // 2. SPF Record
+    try {
+      await this.fetch(`/zones/${zoneId}/dns_records`, {
+        method: "POST",
+        body: JSON.stringify({
+          type: "TXT",
+          name: "@",
+          content: "v=spf1 include:_spf.mx.cloudflare.net ~all",
+          ttl: 3600,
+        }),
+      });
+    } catch (e: any) {
+      if (!e.message?.includes("already exists")) {
+        console.warn(`CLOUDFLARE: SPF record creation failed: ${e.message}`);
+      }
+    }
+
+    return { success: true };
+  },
 };

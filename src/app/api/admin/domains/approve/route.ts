@@ -62,10 +62,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: updateError.message }, { status: 500 });
     }
 
-    // 5. Setup Email Routing (Worker)
+    // 5. Setup Email Routing (Worker & DNS)
     const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-ingest-worker';
     try {
       await cloudflare.setupEmailRouting(zone.id, workerName);
+      await cloudflare.setupEmailDNS(zone.id);
     } catch (e) {
       console.error('Email routing setup failed:', e);
     }

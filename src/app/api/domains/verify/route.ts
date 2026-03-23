@@ -36,6 +36,7 @@ export async function POST(request: Request) {
         if (domain.cloudflare_status !== 'active') {
           try {
             await cloudflare.setupEmailRouting(zone.id, process.env.CLOUDFLARE_WORKER_NAME!);
+            await cloudflare.setupEmailDNS(zone.id);
             await supabase
               .from('user_domains')
               .update({ cloudflare_status: 'active' })
