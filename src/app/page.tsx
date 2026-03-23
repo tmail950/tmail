@@ -29,6 +29,8 @@ export default function Home() {
   const [selectedDomain, setSelectedDomain] = useState<string>("");
   const [isAuto, setIsAuto] = useState(true);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [userEmails, setUserEmails] = useState<any[]>([]);
+  const [isSavingEmail, setIsSavingEmail] = useState(false);
 
   // 1. Fetch Domains Logic
   const fetchDomains = useCallback(async () => {
@@ -66,7 +68,36 @@ export default function Home() {
     return () => { mounted = false; };
   }, [authLoading, fetchDomains]);
 
+  // 2.5. Fetch User's Saved Emails
+  const fetchUserEmails = useCallback(async () => {
+    if (!user) return;
+    try {
+      const emails = await domainService.listUserEmails(user.id);
+      setUserEmails(emails || []);
+      return emails;
+    } catch (err) {
+      console.error("Error fetching user emails:", err);
+      return [];
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserEmails();
+    }
+  }, [user, fetchUserEmails]);
+
   // 3. Initial UI Calibration (Hard Failsafe)
+  useEffect(() => {
+    if (user && userEmails.length > 0 && !localStorage.getItem("quamify_active_email")) {
+      const firstEmail = userEmails[0].email_address;
+      const [p, d] = firstEmail.split('@');
+      setPrefix(p);
+      setSelectedDomain(d);
+      setIsAuto(false);
+    }
+  }, [user, userEmails]);
+
   useEffect(() => {
     let mounted = true;
     
@@ -149,6 +180,27 @@ export default function Home() {
     }
   }, [address]);
 
+  const handleSaveEmail = useCallback(async () => {
+    if (!user || !address || isSavingEmail) return;
+    setIsSavingEmail(true);
+    try {
+      await domainService.associateEmail(user.id, address);
+      await fetchUserEmails();
+    } catch (err) {
+      console.error("Save email error:", err);
+    } finally {
+      setIsSavingEmail(false);
+    }
+  }, [user, address, isSavingEmail, fetchUserEmails]);
+
+  const handleSwitchEmail = useCallback((newAddress: string) => {
+    const [newPrefix, newDom] = newAddress.split('@');
+    setPrefix(newPrefix);
+    setSelectedDomain(newDom);
+    setIsAuto(false);
+    setSelectedEmailId(null);
+  }, []);
+
   return (
     <>
       <AnimatePresence>
@@ -184,6 +236,11 @@ export default function Home() {
           verifiedDomains={verifiedDomains}
           onDomainChange={handleDomainChange}
           onSimulate={simulateEmail}
+          savedAddresses={userEmails.map(e => e.email_address)}
+          onSwitchAddress={handleSwitchEmail}
+          onSaveAddress={handleSaveEmail}
+          isSaving={isSavingEmail}
+          isLoggedIn={!!user}
         />
       </div>
 

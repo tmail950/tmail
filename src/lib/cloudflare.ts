@@ -40,6 +40,12 @@ export const cloudflare = {
     return this.fetch(`/zones/${zoneId}`);
   },
 
+  async deleteZone(zoneId: string) {
+    return this.fetch(`/zones/${zoneId}`, {
+      method: 'DELETE',
+    });
+  },
+
   async setupEmailRouting(zoneId: string, workerName: string) {
     // 1. Enable Email Routing for the zone
     await this.fetch(`/zones/${zoneId}/email/routing/enabled`, {

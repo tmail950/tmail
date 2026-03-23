@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Wand2, Copy, Check, Globe, Zap } from 'lucide-react';
+import { Wand2, Copy, Check, Globe, Zap, Loader2 } from 'lucide-react';
 import { motion } from "framer-motion";
 import { type DomainRecord } from "@/services/domainService";
 
@@ -13,6 +13,11 @@ interface HeroAddressProps {
   verifiedDomains: DomainRecord[];
   onDomainChange: (val: string) => void;
   onSimulate?: () => void;
+  onSaveAddress?: () => void;
+  onSwitchAddress?: (addr: string) => void;
+  savedAddresses?: string[];
+  isSaving?: boolean;
+  isLoggedIn?: boolean;
 }
 
 const HeroAddress = ({ 
@@ -24,7 +29,12 @@ const HeroAddress = ({
   selectedDomain,
   verifiedDomains,
   onDomainChange,
-  onSimulate
+  onSimulate,
+  onSaveAddress,
+  onSwitchAddress,
+  savedAddresses = [],
+  isSaving = false,
+  isLoggedIn = false
 }: HeroAddressProps) => {
   const [copied, setCopied] = useState(false);
 
@@ -123,7 +133,40 @@ const HeroAddress = ({
                   Simulate
                 </button>
               )}
+
+              {isLoggedIn && !savedAddresses.includes(emailAddress) && (
+                <button
+                  onClick={onSaveAddress}
+                  disabled={isSaving}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-4 sm:py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest bg-green-500/10 text-green-400 hover:bg-green-500/20 hover:text-green-300 border border-green-500/20 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                  Save Address
+                </button>
+              )}
             </div>
+
+            {/* Saved Addresses Quick Switcher */}
+            {isLoggedIn && savedAddresses.length > 0 && (
+              <div className="flex flex-col items-center gap-4 mt-4 py-6 border-t border-white/5">
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Holographic Reserves ({savedAddresses.length})</span>
+                <div className="flex flex-wrap justify-center gap-2 max-w-2xl px-4">
+                  {savedAddresses.map((addr) => (
+                    <button
+                      key={addr}
+                      onClick={() => onSwitchAddress?.(addr)}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-bold transition-all border ${
+                        addr === emailAddress
+                          ? "bg-[var(--color-brand-pink)]/20 text-[var(--color-brand-pink)] border-[var(--color-brand-pink)]/40 shadow-[0_0_15px_rgba(255,18,177,0.2)]"
+                          : "bg-white/5 text-gray-400 border-white/5 hover:border-white/20 hover:text-white"
+                      }`}
+                    >
+                      {addr}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="mt-8 pt-8 border-t border-white/5 flex flex-wrap items-center justify-center gap-4 sm:gap-6">

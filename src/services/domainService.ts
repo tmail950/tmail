@@ -250,6 +250,31 @@ export const domainService = {
     }
   },
 
+  async listUserEmails(userId: string) {
+    const { data, error } = await supabase
+      .from('user_emails')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async associateEmail(userId: string, address: string, domainId?: string) {
+    const { data, error } = await supabase
+      .from('user_emails')
+      .upsert({ 
+        user_id: userId, 
+        email_address: address.toLowerCase().trim()
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
   async deletePlatformDomain(id: string) {
     // Legacy method for cleanup
     return;

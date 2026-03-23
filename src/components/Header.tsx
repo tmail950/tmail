@@ -105,11 +105,13 @@ const HeaderContent = memo(() => {
                   className="flex items-center gap-3 p-1 rounded-2xl hover:bg-white/5 transition-all cursor-pointer group"
                 >
                   <div className="flex flex-col items-end hidden lg:flex">
-                    <span className="text-xs text-white font-black truncate max-w-[150px] uppercase tracking-tighter">{user.email?.split('@')[0]}</span>
+                    <span className="text-xs text-white font-black truncate max-w-[150px] uppercase tracking-tighter">
+                      {user.user_metadata?.username || user.email?.split('@')[0]}
+                    </span>
                     <span className="text-[8px] text-[var(--color-brand-pink)] font-black uppercase tracking-widest">Active Member</span>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-brand-purple)] to-[var(--color-brand-pink)] flex items-center justify-center text-white font-black shadow-[0_0_15px_rgba(255,18,177,0.3)] group-hover:scale-105 transition-transform">
-                    {user.email?.[0].toUpperCase()}
+                    {(user.user_metadata?.username?.[0] || user.email?.[0]).toUpperCase()}
                   </div>
                 </button>
 
@@ -124,7 +126,7 @@ const HeaderContent = memo(() => {
                         initial={{ opacity: 0, scale: 0.95, y: 10 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                        className="absolute top-full right-0 mt-4 w-72 glass-panel rounded-3xl p-6 border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-50 overflow-hidden"
+                        className="absolute top-full right-0 mt-4 w-72 glass-panel rounded-3xl p-6 border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-50 overflow-hidden bg-[#0a0a0a]/95 backdrop-blur-2xl"
                       >
                         <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--color-brand-pink)] to-transparent opacity-50"></div>
                         <div className="space-y-6">
@@ -183,7 +185,7 @@ const HeaderContent = memo(() => {
             exit={{ opacity: 0, y: -20 }}
             className="absolute top-full left-4 right-4 mt-2 md:hidden z-10"
           >
-            <div className="glass-panel rounded-2xl p-4 space-y-2 border-[rgba(255,255,255,0.05)] shadow-2xl">
+            <div className="glass-panel rounded-2xl p-4 space-y-4 border-[rgba(255,255,255,0.1)] shadow-[0_10px_40px_rgba(0,0,0,0.8)] bg-[#050505]/95 backdrop-blur-3xl">
               {navLinks.map((link, idx) => (
                 <Link 
                   key={`${link.href}-mobile-${idx}`}
@@ -202,19 +204,21 @@ const HeaderContent = memo(() => {
                         {user.email?.[0].toUpperCase()}
                     </div>
                     <div className="flex flex-col overflow-hidden">
-                        <span className="text-xs text-white font-black truncate w-full uppercase tracking-tighter">{user.email?.split('@')[0]}</span>
+                        <span className="text-xs text-white font-black truncate w-full uppercase tracking-tighter">
+                          {user.user_metadata?.username || user.email?.split('@')[0]}
+                        </span>
                         <span className="text-[8px] text-[var(--color-brand-pink)] font-black uppercase tracking-widest">Active Member</span>
                     </div>
                    </div>
 
                     <div className="grid grid-cols-1 gap-2 px-1">
-                      <a 
-                         href="/api/auth/signout"
-                         className="flex items-center justify-center gap-2 py-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-black uppercase tracking-[0.2em] transition-all border border-red-500/10"
-                       >
-                         <LogOut className="w-4 h-4" />
-                         Sign Out Permanently
-                       </a>
+                       <a 
+                          href="/api/auth/signout"
+                          className="flex items-center justify-center gap-2 py-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-[0.2em] transition-all shadow-[0_0_20px_rgba(220,38,38,0.4)] border border-white/10"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Sign Out Permanently
+                        </a>
                        
                        <button 
                          onClick={handleDeleteAccount}

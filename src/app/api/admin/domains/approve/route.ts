@@ -62,7 +62,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: updateError.message }, { status: 500 });
     }
 
-    // 5. Best effort TXT record
+    // 5. Setup Email Routing (Worker)
+    const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-ingest-worker';
+    try {
+      await cloudflare.setupEmailRouting(zone.id, workerName);
+    } catch (e) {
+      console.error('Email routing setup failed:', e);
+    }
+
+    // 6. Best effort TXT record
     try {
       await cloudflare.addVerificationTXT(zone.id, domain.verification_token);
     } catch (e) {
