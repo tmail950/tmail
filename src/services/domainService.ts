@@ -206,6 +206,19 @@ export const domainService = {
     return await response.json()
   },
 
+  async syncDomain(id: string) {
+    const response = await fetch('/api/admin/domains/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || 'Sync failed')
+    }
+    return await response.json()
+  },
+
   async listPendingDomains() {
     // We can still use supabase direct fetch if RLS allows admins to see all
     const { data, error } = await supabase

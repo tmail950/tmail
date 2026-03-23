@@ -19,6 +19,7 @@ interface HeroAddressProps {
   isSaving?: boolean;
   isLoggedIn?: boolean;
   isDomainLoading?: boolean;
+  isSaved?: boolean;
   error?: string | null;
 }
 
@@ -38,6 +39,7 @@ const HeroAddress = ({
   isSaving = false,
   isLoggedIn = false,
   isDomainLoading = false,
+  isSaved = false,
   error = null
 }: HeroAddressProps) => {
   const [copied, setCopied] = useState(false);
@@ -150,14 +152,18 @@ const HeroAddress = ({
                 </button>
               )}
 
-              {isLoggedIn && !savedAddresses.includes(emailAddress) && (
+              {isLoggedIn && !isSaved && (
                 <button
                   onClick={onSaveAddress}
                   disabled={isSaving}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-4 sm:py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest bg-green-500/10 text-green-400 hover:bg-green-500/20 hover:text-green-300 border border-green-500/20 transition-all active:scale-95 disabled:opacity-50"
+                  className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-4 sm:py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 ${
+                    !isSaved 
+                    ? "bg-[var(--color-brand-pink)] text-white shadow-[0_0_20px_var(--color-brand-pink)]/40 animate-pulse" 
+                    : "bg-green-500/10 text-green-400 hover:bg-green-500/20 hover:text-green-300 border border-green-500/20"
+                  }`}
                 >
                   {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                  Save Address
+                  {!isSaved ? "Activate Inbox" : "Save Address"}
                 </button>
               )}
             </div>

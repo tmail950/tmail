@@ -266,6 +266,7 @@ export default function Home() {
           onDomainChange={handleDomainChange}
           onSimulate={simulateEmail}
           savedAddresses={userEmails.map(e => e.email_address)}
+          isSaved={userEmails.some(e => e.email_address === address)}
           onSwitchAddress={handleSwitchEmail}
           onSaveAddress={handleSaveEmail}
           isSaving={isSavingEmail}
@@ -283,7 +284,7 @@ export default function Home() {
             </div>
           ) : emails.length === 0 ? (
             <div className="flex-1 h-full">
-              <EmptyState />
+              <EmptyState isSaved={userEmails.some(e => e.email_address === address)} />
             </div>
           ) : (
             <Sidebar 

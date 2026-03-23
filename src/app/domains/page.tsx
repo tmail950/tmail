@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Globe, Plus, Trash2, Loader2, AlertTriangle, ShieldCheck, Copy, Check, Info } from "lucide-react"
+import { Globe, Plus, Trash2, Loader2, AlertTriangle, ShieldCheck, Copy, Check, Info, RefreshCw } from "lucide-react"
 import { useAuth } from "@/components/providers/AuthProvider"
 import { useRouter } from "next/navigation"
 import { domainService, type DomainRecord } from "@/services/domainService"
@@ -343,10 +343,24 @@ export default function UserDomains() {
                         </button>
                       )}
                       {domain.admin_approval === 'approved' && (
-                        <div className="px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                          <Globe className="w-3.5 h-3.5" />
-                          Platform Active
-                        </div>
+                        <button 
+                          onClick={async () => {
+                            try {
+                              setVerifying(domain.id);
+                              await domainService.syncDomain(domain.id);
+                              alert("Cloudflare configuration re-synced successfully.");
+                            } catch (err: any) {
+                              alert(err.message);
+                            } finally {
+                              setVerifying(null);
+                            }
+                          }}
+                          disabled={verifying === domain.id}
+                          className="px-4 py-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 text-[10px] font-black uppercase tracking-widest border border-blue-500/10 flex items-center gap-2"
+                        >
+                          {verifying === domain.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                          {verifying === domain.id ? 'Syncing...' : 'Sync Cloudflare'}
+                        </button>
                       )}
                       {!domain.is_verified && (
                         <button 
