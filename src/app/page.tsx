@@ -206,6 +206,8 @@ export default function Home() {
     }
   }, [address]);
 
+  const [showSuccess, setShowSuccess] = useState(false);
+
   const handleSaveEmail = useCallback(async () => {
     if (!user) {
       setSaveError("Please sign in to activate your holographic inbox.");
@@ -219,18 +221,32 @@ export default function Home() {
 
     setIsSavingEmail(true);
     setSaveError(null);
+    setShowSuccess(false);
+    
+    // Safety timeout to prevent infinite spinner
+    const spinnerTimeout = setTimeout(() => {
+      setIsSavingEmail(false);
+    }, 10000);
+
     try {
-      await domainService.associateEmail(user.id, address);
-      await fetchUserEmails();
+      const newEmail = await domainService.associateEmail(user.id, address);
+      
+      // Update local state IMMEDIATELY so UI reflects 'Active' status instantly
+      setUserEmails(prev => [newEmail, ...prev]);
+      
       console.log("UI: Holographic address reserved successfully.");
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+      clearTimeout(spinnerTimeout);
+      setIsSavingEmail(false);
     } catch (err: any) {
+      clearTimeout(spinnerTimeout);
+      setIsSavingEmail(false);
       const msg = err.message || "Activation failure.";
       setSaveError(msg);
       console.error("Save email error:", err);
-    } finally {
-      setIsSavingEmail(false);
     }
-  }, [user, address, isSavingEmail, fetchUserEmails]);
+  }, [user, address, isSavingEmail, setUserEmails]);
 
   const handleSwitchEmail = useCallback((newAddress: string) => {
     const [newPrefix, newDom] = newAddress.split('@');
@@ -275,11 +291,11 @@ export default function Home() {
           verifiedDomains={verifiedDomains}
           onDomainChange={handleDomainChange}
           onSimulate={simulateEmail}
-          savedAddresses={userEmails.map(e => e.email_address)}
-          isSaved={userEmails.some(e => e.email_address === address)}
           onSwitchAddress={handleSwitchEmail}
           onSaveAddress={handleSaveEmail}
           isSaving={isSavingEmail}
+          isSaved={userEmails.some(e => e.email_address === address)}
+          showSuccess={showSuccess}
           isLoggedIn={!!user}
           isDomainLoading={isDomainLoading}
           error={saveError}

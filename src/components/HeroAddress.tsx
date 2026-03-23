@@ -20,6 +20,7 @@ interface HeroAddressProps {
   isLoggedIn?: boolean;
   isDomainLoading?: boolean;
   isSaved?: boolean;
+  showSuccess?: boolean;
   error?: string | null;
 }
 
@@ -40,6 +41,7 @@ const HeroAddress = ({
   isLoggedIn = false,
   isDomainLoading = false,
   isSaved = false,
+  showSuccess = false,
   error = null
 }: HeroAddressProps) => {
   const [copied, setCopied] = useState(false);
@@ -155,15 +157,23 @@ const HeroAddress = ({
               {isLoggedIn && !isSaved && (
                 <button
                   onClick={onSaveAddress}
-                  disabled={isSaving}
-                  className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-4 sm:py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 ${
-                    !isSaved 
+                  disabled={isSaving || showSuccess}
+                  className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-4 sm:py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 disabled:opacity-80 ${
+                    showSuccess
+                    ? "bg-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.4)]"
+                    : !isSaved 
                     ? "bg-[var(--color-brand-pink)] text-white shadow-[0_0_20px_var(--color-brand-pink)]/40 animate-pulse" 
-                    : "bg-green-500/10 text-green-400 hover:bg-green-500/20 hover:text-green-300 border border-green-500/20"
+                    : "bg-green-500/10 text-green-400 border border-green-500/20"
                   }`}
                 >
-                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                  {!isSaved ? "Activate Inbox" : "Save Address"}
+                  {isSaving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : showSuccess ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <Zap className="w-4 h-4" />
+                  )}
+                  {showSuccess ? "Reserved!" : isSaving ? "Reserving..." : "Activate Inbox"}
                 </button>
               )}
             </div>
