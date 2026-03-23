@@ -229,15 +229,13 @@ export const domainService = {
         .order('created_at', { ascending: false })
       
       if (error) {
-        if (error.name === 'AbortError' && retries > 0) {
-          console.warn("DOMAIN-SERVICE: Lock conflict (AbortError). Retrying in 500ms...");
-          await new Promise(r => setTimeout(r, 500));
-          return this.listPublicDomains(retries - 1);
-        }
-        console.error("DOMAIN-SERVICE: Fetch error:", error);
+        console.error("DOMAIN-SERVICE: Supabase error during fetch:", error);
         return [];
       }
-      console.log("DOMAIN-SERVICE: Domains found:", data?.length || 0);
+      console.log("DOMAIN-SERVICE: Fetched domains successfully. Total:", data?.length || 0);
+      if (data && data.length > 0) {
+        console.log("DOMAIN-SERVICE: Sample domain:", data[0].domain_name);
+      }
       return (data as DomainRecord[]) || [];
     } catch (err: any) {
       if (err.name === 'AbortError' && retries > 0) {
