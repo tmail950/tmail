@@ -83,9 +83,24 @@ export async function POST(request: Request) {
     // 3. Create Zone in Cloudflare (Auto-approval flow)
     let zone;
     try {
-      zone = await cloudflare.createZone(cleanDomain);
+      console.log(`DOMAIN SETUP: Processing [${cleanDomain}] for user [${session.user.email}]`);
+      
+      // First, try to find if it already exists to avoid unnecessary create calls
+      zone = await cloudflare.findZoneByName(cleanDomain);
+      
+      if (!zone) {
+        console.log(`DOMAIN SETUP: Zone not found, creating new Cloudflare zone...`);
+        zone = await cloudflare.createZone(cleanDomain);
+      } else {
+        console.log(`DOMAIN SETUP: Existing zone found in Cloudflare, reusing ID: ${zone.id}`);
+      }
     } catch (error: any) {
-      return NextResponse.json({ message: `Cloudflare error: ${error.message}` }, { status: 500 });
+      console.error(`DOMAIN SETUP: Cloudflare failure for [${cleanDomain}]:`, error.message);
+      let errorMsg = error.message;
+      if (errorMsg.includes('Invalid access token')) {
+        errorMsg = "Cloudflare error: Invalid access token. Please verify your CLOUDFLARE_API_TOKEN in Netlify Site Settings.";
+      }
+      return NextResponse.json({ message: errorMsg }, { status: 500 });
     }
 
     // 4. Insert into Supabase

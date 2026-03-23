@@ -20,24 +20,39 @@ export const cloudflare = {
 
     const data = await response.json();
     if (!data.success) {
-      throw new Error(data.errors?.[0]?.message || 'Cloudflare API error');
+      const errorMsg = data.errors?.[0]?.message || 'Cloudflare API error';
+      console.error(`CLOUDFLARE API FAILURE [${path}]:`, errorMsg, data.errors);
+      throw new Error(errorMsg);
     }
     return data.result;
   },
 
+  async listZones(name?: string): Promise<CloudflareZone[]> {
+    const query = name ? `?name=${name}` : '';
+    return this.fetch(`/zones${query}`);
+  },
+
   async createZone(domainName: string): Promise<CloudflareZone> {
-    return this.fetch('/zones', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: domainName,
-        account: { id: process.env.CLOUDFLARE_ACCOUNT_ID },
-        type: 'full',
-      }),
-    });
+    try {
+      return await this.fetch('/zones', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: domainName,
+          account: { id: process.env.CLOUDFLARE_ACCOUNT_ID },
+          type: 'full',
+        }),
+      });
+    } catch (e: any) {
+      if (e.message?.includes('already exists')) {
+        const zones = await this.listZones(domainName);
+        if (zones.length > 0) return zones[0];
+      }
+      throw e;
+    }
   },
 
   async findZoneByName(domainName: string): Promise<CloudflareZone | null> {
-    const zones = await this.fetch(`/zones?name=${domainName}`);
+    const zones = await this.listZones(domainName);
     return zones.length > 0 ? zones[0] : null;
   },
 
