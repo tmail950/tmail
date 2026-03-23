@@ -28,6 +28,7 @@ export default function Home() {
   const [verifiedDomains, setVerifiedDomains] = useState<DomainRecord[]>([]);
   const [selectedDomain, setSelectedDomain] = useState<string>("");
   const [isAuto, setIsAuto] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // 1. Fetch Domains Logic
   const fetchDomains = useCallback(async () => {
@@ -149,7 +150,26 @@ export default function Home() {
   }, [address]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)] w-full max-w-7xl mx-auto space-y-6 flex-1 px-4 sm:px-0">
+    <>
+      <AnimatePresence>
+        {isInitialLoading && (
+          <motion.div 
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-[#050505] flex flex-col items-center justify-center gap-6"
+          >
+            <div className="relative">
+              <div className="absolute -inset-4 bg-[var(--color-brand-pink)]/20 blur-xl rounded-full animate-pulse"></div>
+              <Loader2 className="w-12 h-12 text-[var(--color-brand-pink)] animate-spin relative z-10" />
+            </div>
+            <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.3em] animate-pulse">
+              Calibrating Holographic Grid...
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex flex-col h-[calc(100vh-120px)] w-full max-w-7xl mx-auto space-y-6 flex-1 px-4 sm:px-0">
       <div className="flex-1 flex flex-col items-center justify-start py-8 sm:py-16">
         <HeroAddress 
           emailAddress={address} 
@@ -222,5 +242,6 @@ export default function Home() {
         )}
       </AnimatePresence>
     </div>
+    </>
   );
 }

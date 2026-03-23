@@ -35,17 +35,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!userEmail) return false
       
       try {
+        // Hardcheck for developer/admin email
+        const masterAdmins = ['info369skills@gmail.com', 'danubaba369@gmail.com', 'abc@artradering.com']
+        if (masterAdmins.includes(userEmail)) {
+          console.log("AUTH: Hardcoded admin match.")
+          return true
+        }
+
+        // Attempt Supabase check (with error handling for 406/missing table)
         const { data, error } = await supabase
           .from('admins')
           .select('email')
           .eq('email', userEmail)
-          .single()
+          .maybeSingle()
         
         if (error) {
           console.warn("AUTH: Admin check failed (Normal result for non-admins):", error.message);
-          // Fallback for master admins
-          const masterAdmins = ['info369skills@gmail.com', 'danubaba369@gmail.com']
-          return masterAdmins.includes(userEmail)
+          return false
         }
         
         return !!data
