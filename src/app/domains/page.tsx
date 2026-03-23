@@ -177,7 +177,18 @@ export default function UserDomains() {
               <div className="glass-panel p-8 rounded-[40px] border border-white/10 space-y-6 overflow-hidden relative">
                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-30" />
                 
-                <p className="text-xs text-gray-400 font-medium">Add these records to your domain&apos;s DNS settings to activate the node and start receiving mail.</p>
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-[var(--color-brand-pink)]/10 border border-[var(--color-brand-pink)]/20">
+                    <p className="text-[11px] text-[var(--color-brand-pink)] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4" />
+                      Step 1: Point Nameservers
+                    </p>
+                    <p className="text-[11px] text-gray-300 leading-relaxed font-medium">
+                      To activate this domain, go to your registrar (Hostinger, GoDaddy, etc.) and replace your nameservers with the ones below. 
+                      Once you do this, <span className="text-white font-bold">everything else</span> (A, MX, CNAME) is handled automatically.
+                    </p>
+                  </div>
+                </div>
                 
                 <div className="overflow-x-auto -mx-4 sm:-mx-0">
                   <table className="w-full text-left">
@@ -256,9 +267,9 @@ export default function UserDomains() {
                 <div className="mt-4 p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex items-start gap-3">
                   <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
                   <div className="space-y-1">
-                    <p className="text-[10px] text-blue-400 font-bold uppercase">Automated Configuration Active</p>
+                    <p className="text-[10px] text-blue-400 font-bold uppercase">One-Click Automation Active</p>
                     <p className="text-[10px] text-blue-400/70 font-medium leading-relaxed italic">
-                      Move your domain to the Nameservers listed above. Once active, we will automatically configure MX records and Email Workers on Cloudflare.
+                      After pointing nameservers, all DNS records (A, CNAME, MX) and Email Workers are automatically provisioned. No manual config required.
                     </p>
                   </div>
                 </div>

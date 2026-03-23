@@ -120,4 +120,27 @@ export const cloudflare = {
 
     return { success: true };
   },
+
+  async setupGeneralDNS(zoneId: string, domainName: string) {
+    console.log(`CLOUDFLARE: Configuring General DNS (A/CNAME) for zone ${zoneId}...`);
+    
+    const records = [
+      { type: "A", name: "@", content: "76.76.21.21", ttl: 3600, proxied: true },
+      { type: "CNAME", name: "www", content: "cname.quammify.fun", ttl: 3600, proxied: true },
+    ];
+
+    for (const record of records) {
+      try {
+        await this.fetch(`/zones/${zoneId}/dns_records`, {
+          method: "POST",
+          body: JSON.stringify(record),
+        });
+      } catch (e: any) {
+        if (!e.message?.includes("already exists")) {
+          console.warn(`CLOUDFLARE: DNS record creation failed (${record.type}): ${e.message}`);
+        }
+      }
+    }
+    return { success: true };
+  },
 };

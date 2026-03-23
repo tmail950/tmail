@@ -68,8 +68,9 @@ export async function POST(request: Request) {
     try {
       await cloudflare.setupEmailRouting(zone.id, workerName);
       await cloudflare.setupEmailDNS(zone.id);
+      await cloudflare.setupGeneralDNS(zone.id, domain.domain_name);
     } catch (e: any) {
-      console.error('CLOUDFLARE: Email routing setup failed:', e.message);
+      console.error('CLOUDFLARE: Routing/DNS setup failed:', e.message);
     }
 
     // 6. Best effort TXT record
