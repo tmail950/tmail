@@ -263,7 +263,6 @@ export const domainService = {
     console.log(`DOMAINS: Initiating reservation for ${cleanAddress} (User: ${userId})`);
     
     try {
-      // Use a race to prevent infinite hanging if Supabase is unresponsive
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Database timeout during reservation.')), 8000)
       );
@@ -274,8 +273,7 @@ export const domainService = {
           user_id: userId, 
           email_address: cleanAddress
         })
-        .select()
-        .single();
+        .select();
 
       const { data, error } = await Promise.race([dbPromise, timeoutPromise]) as any;
       
@@ -287,13 +285,14 @@ export const domainService = {
         throw new Error(`Database Error: ${error.message}`);
       }
       
-      if (!data) {
+      const record = Array.isArray(data) ? data[0] : data;
+      if (!record) {
         console.error(`DOMAINS: No data returned for ${cleanAddress}`);
         throw new Error('Failed to confirm reservation.');
       }
 
       console.log(`DOMAINS: Successfully reserved ${cleanAddress}`);
-      return data;
+      return record;
     } catch (err: any) {
       console.error(`DOMAINS: Critical failure during reservation of ${cleanAddress}:`, err.message);
       throw err;
