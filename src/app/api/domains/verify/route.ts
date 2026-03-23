@@ -34,15 +34,24 @@ export async function POST(request: Request) {
         isVerified = true;
         // Automatically setup Email Routing if not already done
         if (domain.cloudflare_status !== 'active') {
+          console.log(`DOMAIN-VERIFY: Domain [${domain.domain_name}] is now ACTIVE. Setting up automation...`);
           try {
             const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-email-worker';
+            console.log(`DOMAIN-VERIFY: Using worker: ${workerName}`);
+            
             await cloudflare.setupEmailRouting(zone.id, workerName);
             await cloudflare.setupEmailDNS(zone.id);
-            await supabase
+            await cloudflare.setupGeneralDNS(zone.id, domain.domain_name);
+            
+            const { error: updateStatusError } = await supabase
               .from('user_domains')
               .update({ cloudflare_status: 'active' })
               .eq('id', id);
-          } catch (e) {
+            
+            if (updateStatusError) console.error("DOMAIN-VERIFY: DB Update Error:", updateStatusError.message);
+            else console.log("DOMAIN-VERIFY: Cloudflare status marked as active in DB.");
+          } catch (e: any) {
+            console.error(`DOMAIN-VERIFY: Automation failed:`, e.message);
           }
         }
       }

@@ -66,14 +66,36 @@ export const cloudflare = {
     });
   },
 
+  async getRoutingSettings(zoneId: string) {
+    return this.fetch(`/zones/${zoneId}/email/routing/settings`);
+  },
+
   async setupEmailRouting(zoneId: string, workerName: string) {
-    // 1. Enable Email Routing for the zone
-    await this.fetch(`/zones/${zoneId}/email/routing/enabled`, {
-      method: 'POST',
-    });
+    console.log(`CLOUDFLARE: Setting up Email Routing for zone ${zoneId} with worker ${workerName}...`);
+    
+    // 1. Check and Enable Email Routing
+    try {
+      const settings = await this.getRoutingSettings(zoneId);
+      if (!settings.enabled) {
+        console.log(`CLOUDFLARE: Enabling Email Routing...`);
+        // The endpoint is actually /email/routing/enabled with POST for older zones
+        // or /email/routing/settings with PATCH {"enabled": true}
+        try {
+          await this.fetch(`/zones/${zoneId}/email/routing/enabled`, { method: 'POST' });
+        } catch (e) {
+          // Fallback to settings patch
+          await this.fetch(`/zones/${zoneId}/email/routing/settings`, {
+            method: 'PATCH',
+            body: JSON.stringify({ enabled: true }),
+          });
+        }
+      }
+    } catch (err: any) {
+      console.warn(`CLOUDFLARE: Could not check/enable routing status (might already be active): ${err.message}`);
+    }
 
     // 2. Add Worker Route (Catch-all)
-    // Note: Cloudflare has a specific endpoint for the catch-all rule
+    console.log(`CLOUDFLARE: Configuring catch-all rule for worker ${workerName}...`);
     return this.fetch(`/zones/${zoneId}/email/routing/rules/catch_all`, {
       method: 'PUT',
       body: JSON.stringify({

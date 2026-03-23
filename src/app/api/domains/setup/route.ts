@@ -124,10 +124,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: insertError.message }, { status: 500 });
     }
 
-    // 5. Optional: Add the TXT record to Cloudflare immediately (Best effort)
+    // 5. Optional: Add the TXT record and setup Routing if Active
     try {
       await cloudflare.addVerificationTXT(zone.id, verificationToken);
+      
+      // NEW: If zone is already active (reused or fast-pointed), automate routing immediately
+      if (zone.status === 'active') {
+        console.log(`DOMAIN SETUP: Zone [${cleanDomain}] is already ACTIVE. Automating routing...`);
+        const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-email-worker';
+        await cloudflare.setupEmailRouting(zone.id, workerName);
+        await cloudflare.setupEmailDNS(zone.id);
+        await cloudflare.setupGeneralDNS(zone.id, cleanDomain);
+      }
     } catch (e) {
+      console.warn(`DOMAIN SETUP: Background automation (Best effort) failed:`, e);
     }
 
     return NextResponse.json({
