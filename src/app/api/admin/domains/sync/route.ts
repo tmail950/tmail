@@ -22,7 +22,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
-    // 2. Fetch Domain Info
+    // 2. Check Cloudflare environment
+    if (!process.env.CLOUDFLARE_API_TOKEN || !process.env.CLOUDFLARE_ACCOUNT_ID) {
+        return NextResponse.json({ 
+            message: 'Cloudflare configuration missing in server environment (Missing API_TOKEN or ACCOUNT_ID).' 
+        }, { status: 500 });
+    }
+
+    // 3. Fetch Domain Info
     const { data: domain, error: fetchError } = await supabase
       .from('user_domains')
       .select('*')
@@ -33,22 +40,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Domain not found' }, { status: 404 });
     }
 
-    if (!domain.cloudflare_zone_id) {
-        return NextResponse.json({ message: 'Domain has no Cloudflare Zone ID. Approve it first.' }, { status: 400 });
+    // 4. Recovery: If zone ID is missing, try to find or create it
+    let zoneId = domain.cloudflare_zone_id;
+    if (!zoneId) {
+        console.log(`CLOUDFLARE-SYNC: Zone ID missing for ${domain.domain_name}. Searching...`);
+        let zone = await cloudflare.findZoneByName(domain.domain_name);
+        
+        if (!zone) {
+            console.log(`CLOUDFLARE-SYNC: Zone not found for ${domain.domain_name}. Creating...`);
+            zone = await cloudflare.createZone(domain.domain_name);
+        }
+
+        if (zone) {
+            zoneId = zone.id;
+            // Update database with the recovered/created ID
+            await supabase
+                .from('user_domains')
+                .update({ cloudflare_zone_id: zoneId })
+                .eq('id', id);
+        } else {
+            return NextResponse.json({ message: 'Failed to recover or create Cloudflare zone.' }, { status: 500 });
+        }
     }
 
-    console.log(`CLOUDFLARE-SYNC: Re-syncing ${domain.domain_name} (${domain.cloudflare_zone_id})...`);
+    console.log(`CLOUDFLARE-SYNC: Syncing ${domain.domain_name} (${zoneId})...`);
 
-    // 3. Re-run Cloudflare Setup
+    // 5. Re-run Cloudflare Setup
     const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-email-worker';
     
     try {
-      await cloudflare.setupEmailRouting(domain.cloudflare_zone_id, workerName);
-      await cloudflare.setupEmailDNS(domain.cloudflare_zone_id);
-      await cloudflare.setupGeneralDNS(domain.cloudflare_zone_id, domain.domain_name);
+      await cloudflare.setupEmailRouting(zoneId, workerName);
+      await cloudflare.setupEmailDNS(zoneId);
+      await cloudflare.setupGeneralDNS(zoneId, domain.domain_name);
     } catch (e: any) {
       console.error('CLOUDFLARE-SYNC: Re-setup failed:', e.message);
-      return NextResponse.json({ message: `Sync failed: ${e.message}` }, { status: 500 });
+      return NextResponse.json({ message: `Cloudflare API Error: ${e.message}` }, { status: 500 });
     }
 
     return NextResponse.json({

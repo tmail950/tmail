@@ -36,6 +36,11 @@ export const cloudflare = {
     });
   },
 
+  async findZoneByName(domainName: string): Promise<CloudflareZone | null> {
+    const zones = await this.fetch(`/zones?name=${domainName}`);
+    return zones.length > 0 ? zones[0] : null;
+  },
+
   async getZone(zoneId: string): Promise<CloudflareZone> {
     return this.fetch(`/zones/${zoneId}`);
   },
