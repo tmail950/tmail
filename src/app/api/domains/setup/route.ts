@@ -132,9 +132,21 @@ export async function POST(request: Request) {
       if (zone.status === 'active') {
         console.log(`DOMAIN SETUP: Zone [${cleanDomain}] is already ACTIVE. Automating routing...`);
         const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-email-worker';
-        await cloudflare.setupEmailRouting(zone.id, workerName);
+        
+        // Setup DNS first
         await cloudflare.setupEmailDNS(zone.id);
         await cloudflare.setupGeneralDNS(zone.id, cleanDomain);
+        
+        // Setup Routing
+        await cloudflare.setupEmailRouting(zone.id, workerName);
+
+        // Update DB status to active since we just successfully provisioned it
+        await supabase
+          .from('user_domains')
+          .update({ cloudflare_status: 'active' })
+          .eq('id', domain.id);
+          
+        console.log(`DOMAIN SETUP: Automation finalized for [${cleanDomain}]`);
       }
     } catch (e) {
       console.warn(`DOMAIN SETUP: Background automation (Best effort) failed:`, e);

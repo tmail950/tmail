@@ -31,29 +31,33 @@ export async function POST(request: Request) {
       const zone = await cloudflare.getZone(domain.cloudflare_zone_id);
       
       if (zone.status === 'active') {
-        isVerified = true;
         // Automatically setup Email Routing if not already done
         if (domain.cloudflare_status !== 'active') {
-          console.log(`DOMAIN-VERIFY: Domain [${domain.domain_name}] is now ACTIVE. Setting up automation...`);
-          try {
-            const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-email-worker';
-            console.log(`DOMAIN-VERIFY: Using worker: ${workerName}`);
-            
-            await cloudflare.setupEmailRouting(zone.id, workerName);
-            await cloudflare.setupEmailDNS(zone.id);
-            await cloudflare.setupGeneralDNS(zone.id, domain.domain_name);
-            
-            const { error: updateStatusError } = await supabase
-              .from('user_domains')
-              .update({ cloudflare_status: 'active' })
-              .eq('id', id);
-            
-            if (updateStatusError) console.error("DOMAIN-VERIFY: DB Update Error:", updateStatusError.message);
-            else console.log("DOMAIN-VERIFY: Cloudflare status marked as active in DB.");
-          } catch (e: any) {
-            console.error(`DOMAIN-VERIFY: Automation failed:`, e.message);
-          }
+          console.log(`DOMAIN-VERIFY: Domain [${domain.domain_name}] is now ACTIVE. Starting Cloudflare automation...`);
+          
+          const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-email-worker';
+          console.log(`DOMAIN-VERIFY: Using destination worker: ${workerName}`);
+          
+          // CRITICAL: We run DNS setup FIRST to ensure Cloudflare has the records 
+          // before we try to enable routing/catch-all (which cloudflare sometimes validates)
+          await cloudflare.setupEmailDNS(zone.id);
+          await cloudflare.setupGeneralDNS(zone.id, domain.domain_name);
+          
+          // Now setup routing
+          await cloudflare.setupEmailRouting(zone.id, workerName);
+          
+          // If we reached here, automation succeeded. Update status in DB.
+          const { error: updateStatError } = await supabase
+            .from('user_domains')
+            .update({ cloudflare_status: 'active' })
+            .eq('id', id);
+          
+          if (updateStatError) throw new Error(`Status update failed: ${updateStatError.message}`);
+          console.log("DOMAIN-VERIFY: Cloudflare automation finalized successfully.");
         }
+        
+        // Mark as verified since zone is active AND automation finished (or was already active)
+        isVerified = true;
       }
     } else {
       // Legacy TXT record verification

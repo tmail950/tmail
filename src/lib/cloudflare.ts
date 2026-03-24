@@ -71,19 +71,22 @@ export const cloudflare = {
   },
 
   async setupEmailRouting(zoneId: string, workerName: string) {
-    console.log(`CLOUDFLARE: Setting up Email Routing for zone ${zoneId} with worker ${workerName}...`);
+    console.log(`CLOUDFLARE: [${zoneId}] Initiating Email Routing automation...`);
     
-    // 1. Check and Enable Email Routing
+    // 1. Ensure Email Routing is ENABLED
+    let isAlreadyEnabled = false;
     try {
       const settings = await this.getRoutingSettings(zoneId);
-      if (!settings.enabled) {
-        console.log(`CLOUDFLARE: Enabling Email Routing...`);
-        // The endpoint is actually /email/routing/enabled with POST for older zones
-        // or /email/routing/settings with PATCH {"enabled": true}
+      isAlreadyEnabled = settings.enabled;
+      console.log(`CLOUDFLARE: [${zoneId}] Current routing status: ${settings.status}, Enabled: ${settings.enabled}`);
+      
+      if (!isAlreadyEnabled) {
+        console.log(`CLOUDFLARE: [${zoneId}] Enabling Email Routing service...`);
+        // Attempt dedicated enable endpoint first
         try {
           await this.fetch(`/zones/${zoneId}/email/routing/enabled`, { method: 'POST' });
-        } catch (e) {
-          // Fallback to settings patch
+        } catch (postError: any) {
+          console.log(`CLOUDFLARE: [${zoneId}] POST enabled failed, trying PATCH settings: ${postError.message}`);
           await this.fetch(`/zones/${zoneId}/email/routing/settings`, {
             method: 'PATCH',
             body: JSON.stringify({ enabled: true }),
@@ -91,20 +94,29 @@ export const cloudflare = {
         }
       }
     } catch (err: any) {
-      console.warn(`CLOUDFLARE: Could not check/enable routing status (might already be active): ${err.message}`);
+      console.warn(`CLOUDFLARE: [${zoneId}] Routing Enablement Warning (might be fine): ${err.message}`);
     }
 
-    // 2. Add Worker Route (Catch-all)
-    console.log(`CLOUDFLARE: Configuring catch-all rule for worker ${workerName}...`);
-    return this.fetch(`/zones/${zoneId}/email/routing/rules/catch_all`, {
-      method: 'PUT',
-      body: JSON.stringify({
-        name: 'Quamify Catch-all',
-        enabled: true,
-        actions: [{ type: 'worker', value: [workerName] }],
-        matchers: [{ type: 'all' }],
-      }),
-    });
+    // 2. Configure Catch-all to Worker
+    console.log(`CLOUDFLARE: [${zoneId}] Applying Catch-all rule for worker [${workerName}]...`);
+    
+    try {
+      // Use PUT to ensure the rule is either created or completely overwritten to our spec
+      const catchAllRes = await this.fetch(`/zones/${zoneId}/email/routing/rules/catch_all`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: 'Quamify Automated Catch-all',
+          enabled: true,
+          actions: [{ type: 'worker', value: [workerName] }],
+          matchers: [{ type: 'all' }],
+        }),
+      });
+      console.log(`CLOUDFLARE: [${zoneId}] Catch-all rule synchronized successfully.`);
+      return catchAllRes;
+    } catch (ruleError: any) {
+      console.error(`CLOUDFLARE: [${zoneId}] FAILED to configure catch-all rule:`, ruleError.message);
+      throw new Error(`Cloudflare Catch-all configuration failed: ${ruleError.message}`);
+    }
   },
 
   async addVerificationTXT(zoneId: string, token: string) {

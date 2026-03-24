@@ -67,13 +67,23 @@ export async function POST(request: Request) {
 
     console.log(`CLOUDFLARE-SYNC: Syncing ${domain.domain_name} (${zoneId})...`);
 
-    // 5. Re-run Cloudflare Setup
+    // 5. Re-run Cloudflare Setup (DNS First, then Routing)
     const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-email-worker';
     
     try {
-      await cloudflare.setupEmailRouting(zoneId, workerName);
+      console.log(`CLOUDFLARE-SYNC: Provisioning DNS records for ${domain.domain_name}...`);
       await cloudflare.setupEmailDNS(zoneId);
       await cloudflare.setupGeneralDNS(zoneId, domain.domain_name);
+      
+      console.log(`CLOUDFLARE-SYNC: Configuring Email Routing for ${domain.domain_name}...`);
+      await cloudflare.setupEmailRouting(zoneId, workerName);
+      
+      // Update DB status to active
+      await supabase
+        .from('user_domains')
+        .update({ cloudflare_status: 'active' })
+        .eq('id', id);
+        
     } catch (e: any) {
       console.error('CLOUDFLARE-SYNC: Re-setup failed:', e.message);
       return NextResponse.json({ message: `Cloudflare API Error: ${e.message}` }, { status: 500 });
