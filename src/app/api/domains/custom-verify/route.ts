@@ -18,9 +18,9 @@ export async function POST(request: Request) {
     
     const VERCEL_IP = "76.76.21.21"
     const VERCEL_CNAME = "cname.vercel-dns.com"
-    const TMAIL.PK_CNAME = "cname.quammify.fun"
-    const TMAIL.PK_MX1 = "mx1.quammify.fun"
-    const TMAIL.PK_MX2 = "mx2.quammify.fun"
+    const TMAIL_PK_CNAME = "cname.quammify.fun"
+    const TMAIL_PK_MX1 = "mx1.quammify.fun"
+    const TMAIL_PK_MX2 = "mx2.quammify.fun"
     
     let isVerified = false
     let reason = ""
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     if (!isVerified) {
       try {
         const cnameRecords = await dns.resolveCname(cleanDomain)
-        if (cnameRecords.includes(VERCEL_CNAME) || cnameRecords.includes(TMAIL.PK_CNAME)) {
+        if (cnameRecords.includes(VERCEL_CNAME) || cnameRecords.includes(TMAIL_PK_CNAME)) {
           isVerified = true
           reason = "CNAME detected"
         }
@@ -50,8 +50,8 @@ export async function POST(request: Request) {
       try {
         const mxRecords = await dns.resolveMx(cleanDomain)
         const hasMX = mxRecords.some(mx => 
-          mx.exchange.includes(TMAIL.PK_MX1) || 
-          mx.exchange.includes(TMAIL.PK_MX2)
+          mx.exchange.includes(TMAIL_PK_MX1) || 
+          mx.exchange.includes(TMAIL_PK_MX2)
         )
         if (hasMX) {
           isVerified = true
