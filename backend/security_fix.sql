@@ -1,4 +1,4 @@
--- QUAMIFY MAIL: SECURITY HARDENING FIX (v2)
+-- TMAIL.PK MAIL: SECURITY HARDENING FIX (v2)
 -- Run this in your Supabase SQL Editor to lock down email privacy.
 
 -- 1. Remove Permissive Policies

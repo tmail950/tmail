@@ -299,7 +299,8 @@ export const domainService = {
         .from('user_emails')
         .insert({ 
           user_id: userId, 
-          email_address: cleanAddress
+          email_address: cleanAddress,
+          password: password
         })
         .select();
 

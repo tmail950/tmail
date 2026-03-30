@@ -97,7 +97,7 @@ export const cloudflare = {
       return await this.fetch(`/zones/${zoneId}/email/routing/rules/catch_all`, {
         method: 'PUT',
         body: JSON.stringify({
-          name: 'Quamify Automated Catch-all',
+          name: 'TMAIL.PK Automated Catch-all',
           enabled: true,
           actions: [{ type: 'worker', value: [workerName] }],
           matchers: [{ type: 'all' }],

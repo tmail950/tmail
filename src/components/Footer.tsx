@@ -5,7 +5,7 @@ import Link from "next/link";
 import { domainService } from "@/services/domainService";
 
 const Footer = memo(() => {
-  const [copyright, setCopyright] = useState("Quamify. All Rights Reserved.");
+  const [copyright, setCopyright] = useState("TMAIL.PK. All Rights Reserved.");
 
   useEffect(() => {
     domainService.getSettings().then(settings => {

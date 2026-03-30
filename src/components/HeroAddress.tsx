@@ -81,7 +81,7 @@ const HeroAddress = ({
           <div className="flex items-center gap-2 mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-[--color-brand-pink] animate-ping"></span>
             <h2 className="text-xs font-black text-gray-400 tracking-[0.3em] uppercase relative z-10">
-              Active Holographic Inbox
+              Active Inbox
             </h2>
           </div>
           
@@ -92,7 +92,8 @@ const HeroAddress = ({
                 type="text"
                 value={prefix}
                 onChange={(e) => onPrefixChange(e.target.value)}
-                className="w-full sm:flex-1 bg-transparent text-2xl sm:text-3xl font-black text-white outline-none min-w-0 text-center sm:text-left pr-10"
+                readOnly={!isLoggedIn && !isAuto}
+                className={`w-full sm:flex-1 bg-transparent text-2xl sm:text-3xl font-black text-white outline-none min-w-0 text-center sm:text-left pr-10 ${!isLoggedIn && !isAuto ? 'cursor-default' : ''}`}
                 placeholder="prefix"
               />
               <button
@@ -198,12 +199,18 @@ const HeroAddress = ({
                     : "bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/5"
                 }`}
               >
-                <Wand2 className="w-4 h-4" />
-                Free Generate
+              <Wand2 className="w-4 h-4" />
+                Regenerate
               </button>
               
               <button
-                onClick={handleCopy}
+                onClick={() => {
+                  if (!emailAddress) return;
+                  const credentials = `Email: ${emailAddress}\nPassword: ${password}`;
+                  navigator.clipboard.writeText(credentials);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
                 disabled={!emailAddress}
                 className={`w-full sm:flex-1 flex items-center justify-center gap-3 px-8 py-4 sm:py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${
                   copied 
@@ -212,7 +219,7 @@ const HeroAddress = ({
                 }`}
               >
                 {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                {copied ? "Copied" : "Copy Address"}
+                {copied ? "Copied" : "Copy Credentials"}
               </button>
 
               {(isSaved || showSuccess) && !sessionExpired && (
@@ -232,22 +239,6 @@ const HeroAddress = ({
                 </div>
               )}
 
-              {!isSaved && !showSuccess && !sessionExpired && (
-                <button
-                  onClick={onSaveAddress}
-                  disabled={isSaving}
-                  className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-4 sm:py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 disabled:opacity-80 ${
-                    "bg-[var(--color-brand-pink)] text-white shadow-[0_0_20px_var(--color-brand-pink)]/40 animate-pulse"
-                  }`}
-                >
-                  {isSaving ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Zap className="w-4 h-4" />
-                  )}
-                  {isSaving ? "Reserving..." : "Activate Inbox"}
-                </button>
-              )}
 
               {!isLoggedIn && sessionExpired && (
                 <button
@@ -263,7 +254,7 @@ const HeroAddress = ({
             {/* Saved Addresses Quick Switcher */}
             {savedAddresses.length > 0 && (
               <div className="flex flex-col items-center gap-4 mt-4 py-6 border-t border-white/5">
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Holographic Reserves ({savedAddresses.length})</span>
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Previous Emails ({savedAddresses.length})</span>
                 <div className="flex flex-wrap justify-center gap-2 max-w-2xl px-4">
                   {savedAddresses.map((addr) => (
                     <div key={addr} className="flex items-center gap-1 group/addr">

@@ -35,7 +35,7 @@ export async function POST(request: Request) {
         if (domain.cloudflare_status !== 'active') {
           console.log(`DOMAIN-VERIFY: Domain [${domain.domain_name}] is now ACTIVE. Starting Cloudflare automation...`);
           
-          const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-email-worker';
+          const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'TMAIL.PK-email-worker';
           
           await cloudflare.setupEmailDNS(zone.id);
           await cloudflare.setupGeneralDNS(zone.id, domain.domain_name);

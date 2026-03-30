@@ -353,7 +353,7 @@ export default function AdminSettings() {
                         className="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-red-500/50 outline-none text-white text-sm transition-all"
                       />
                     </div>
-                    <p className="text-[9px] text-gray-600 italic">This will directly update the root authentication for Quamify Mail.</p>
+                    <p className="text-[9px] text-gray-600 italic">This will directly update the root authentication for TMAIL.PK Mail.</p>
                     <button
                       onClick={sendEmailChangeOtp}
                       disabled={emailChangeSending}

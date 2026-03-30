@@ -1,4 +1,4 @@
--- SQL for Quamify Mail Advanced Features
+-- SQL for TMAIL.PK Mail Advanced Features
 
 -- 1. Domains Table
 CREATE TABLE IF NOT EXISTS user_domains (
@@ -106,11 +106,11 @@ NOTIFY pgrst, 'reload schema';
 
 -- Initial records
 INSERT INTO admins (email) VALUES ('info369skills@gmail.com') ON CONFLICT DO NOTHING;
-INSERT INTO site_settings (key, value) VALUES ('main_domain', 'quamify-mail.vercel.app') ON CONFLICT DO NOTHING;
+INSERT INTO site_settings (key, value) VALUES ('main_domain', 'TMAIL.PK-mail.vercel.app') ON CONFLICT DO NOTHING;
 INSERT INTO site_settings (key, value) VALUES ('support_email', 'support@369aiventures.com') ON CONFLICT DO NOTHING;
-INSERT INTO site_settings (key, value) VALUES ('copyright_text', 'Quamify. All Rights Reserved.') ON CONFLICT DO NOTHING;
-INSERT INTO site_settings (key, value) VALUES ('terms_content', 'By accessing and using Quamify Mail, you agree to be bound by these terms. This service provides temporary holographic email addresses for testing and privacy purposes.') ON CONFLICT DO NOTHING;
-INSERT INTO site_settings (key, value) VALUES ('safety_clause_content', 'Quamify ka structure third-party providers (Vercel, Supabase, Cloudflare) par depend karta hai. In platforms ki policies, free-tier limits, ya uptime humare control mein nahi hain.') ON CONFLICT DO NOTHING;
+INSERT INTO site_settings (key, value) VALUES ('copyright_text', 'TMAIL.PK. All Rights Reserved.') ON CONFLICT DO NOTHING;
+INSERT INTO site_settings (key, value) VALUES ('terms_content', 'By accessing and using TMAIL.PK Mail, you agree to be bound by these terms. This service provides temporary holographic email addresses for testing and privacy purposes.') ON CONFLICT DO NOTHING;
+INSERT INTO site_settings (key, value) VALUES ('safety_clause_content', 'TMAIL.PK ka structure third-party providers (Vercel, Supabase, Cloudflare) par depend karta hai. In platforms ki policies, free-tier limits, ya uptime humare control mein nahi hain.') ON CONFLICT DO NOTHING;
 
 -- 2. Domain Limit Trigger (9 Domains Max)
 CREATE OR REPLACE FUNCTION check_domain_limit() RETURNS TRIGGER AS $$
@@ -156,7 +156,7 @@ CREATE POLICY "Users can view emails for their domains"
             AND public.emails.recipient_address LIKE ('%@' || user_domains.domain_name)
         )
         OR 
-        public.emails.recipient_address LIKE '%@quamify-mail.com'
+        public.emails.recipient_address LIKE '%@TMAIL.PK-mail.com'
         OR
         EXISTS (
             SELECT 1 FROM public.guest_mailboxes

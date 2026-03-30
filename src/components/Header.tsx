@@ -1,11 +1,10 @@
-"use client";
-
-import { Globe, Home, LogOut, Shield, Menu, X, ShieldCheck, FileText, Trash2, AlertTriangle } from "lucide-react";
+import { Globe, Home, LogOut, Shield, Menu, X, ShieldCheck, FileText, Trash2, AlertTriangle, Users, PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { useState, useEffect, Suspense, useMemo, memo } from "react";
+import { useState, useEffect, Suspense, useMemo, memo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { createClient } from '@/lib/supabase/client'
 
 const HeaderContent = memo(() => {
   const { user, signOut, isAdmin } = useAuth();
@@ -18,6 +17,9 @@ const HeaderContent = memo(() => {
   const [mounted, setMounted] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [savedAccounts, setSavedAccounts] = useState<string[]>([]);
+  const [isSwitchOpen, setIsSwitchOpen] = useState(false);
+  const supabase = createClient();
 
   useEffect(() => {
     setMounted(true);
@@ -25,8 +27,35 @@ const HeaderContent = memo(() => {
       setIsScrolled(window.scrollY > 20);
     };
     window.addEventListener('scroll', handleScroll);
+
+    // Load saved accounts
+    const accounts = JSON.parse(localStorage.getItem('TMAIL.PK_saved_accounts') || '[]');
+    setSavedAccounts(accounts);
+
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const saveCurrentAccount = useCallback(() => {
+    if (!user?.email) return;
+    const accounts = JSON.parse(localStorage.getItem('TMAIL.PK_saved_accounts') || '[]');
+    if (!accounts.includes(user.email)) {
+      const newAccounts = [user.email, ...accounts].slice(0, 5); // Keep last 5
+      localStorage.setItem('TMAIL.PK_saved_accounts', JSON.stringify(newAccounts));
+      setSavedAccounts(newAccounts);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) saveCurrentAccount();
+  }, [user, saveCurrentAccount]);
+
+  const handleSwitchAccount = async (targetEmail: string) => {
+    if (targetEmail === user?.email) return;
+    setIsSwitchOpen(false);
+    await signOut();
+    // Redirect to login with pre-filled email
+    window.location.href = `/login?email=${encodeURIComponent(targetEmail)}`;
+  };
 
   const handleDeleteAccount = () => {
     setIsProfileOpen(false);
@@ -69,7 +98,7 @@ const HeaderContent = memo(() => {
         <Link href="/" className="flex items-center gap-3 shrink-0">
           <div className="flex flex-col">
             <span className="text-xl sm:text-2xl font-black tracking-widest bg-gradient-to-r from-[#7d12ff] via-[#ff12b1] to-[#ff8a12] bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(255,18,177,0.4)] uppercase">
-              Quamify
+              TMAIL.PK
             </span>
             <span className="text-[8px] font-mono text-gray-500 tracking-[0.3em] ml-0.5 uppercase">v1.2 // Secure</span>
           </div>
@@ -107,8 +136,52 @@ const HeaderContent = memo(() => {
           {mounted && (
             user ? (
               <div className="flex items-center gap-2 sm:gap-4 sm:pl-4 sm:border-l border-white/10 relative">
-                {/* Sign Out + Delete - Always Visible */}
-                <div className="hidden sm:flex items-center gap-1 mr-2">
+                {/* Multi-Account Switcher */}
+                <div className="hidden sm:flex items-center gap-1 mr-2 relative">
+                  <button
+                    onClick={() => setIsSwitchOpen(!isSwitchOpen)}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all border border-white/5"
+                    title="Switch Account"
+                  >
+                    <Users className="w-3.5 h-3.5 text-[var(--color-brand-pink)]" />
+                    Switch
+                  </button>
+
+                  <AnimatePresence>
+                    {isSwitchOpen && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setIsSwitchOpen(false)} />
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                          className="absolute top-full right-0 mt-2 w-56 glass-panel rounded-2xl p-2 border-white/10 shadow-2xl z-50 bg-[#0a0a0a]"
+                        >
+                          <div className="p-2 border-b border-white/5 mb-1">
+                            <span className="text-[8px] text-gray-500 font-black uppercase tracking-widest">Switch Identity</span>
+                          </div>
+                          {savedAccounts.filter(acc => acc !== user.email).map(acc => (
+                            <button
+                              key={acc}
+                              onClick={() => handleSwitchAccount(acc)}
+                              className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 text-left transition-all"
+                            >
+                              <div className="w-6 h-6 rounded-lg bg-gray-800 flex items-center justify-center text-[8px] font-black">{acc[0].toUpperCase()}</div>
+                              <span className="text-[10px] text-gray-300 font-bold truncate">{acc}</span>
+                            </button>
+                          ))}
+                          <Link
+                            href="/login?signup=true"
+                            className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 text-left transition-all text-[var(--color-brand-pink)]"
+                          >
+                            <PlusCircle className="w-4 h-4" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">New Account</span>
+                          </Link>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+
                   <a 
                     href="/api/auth/signout"
                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all border border-white/5"

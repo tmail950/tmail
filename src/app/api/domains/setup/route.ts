@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       .split('/')[0];
 
     // 2. Generate Verification Token
-    const verificationToken = `quamify-verify-${Math.random().toString(36).substring(2, 15)}`;
+    const verificationToken = `TMAIL.PK-verify-${Math.random().toString(36).substring(2, 15)}`;
 
     // Get valid admins from settings or hardcoded fallback
     const settings = await supabase.from('site_settings').select('value').eq('key', 'admin_email').single();
@@ -131,7 +131,7 @@ export async function POST(request: Request) {
       // NEW: If zone is already active (reused or fast-pointed), automate routing immediately
       if (zone.status === 'active') {
         console.log(`DOMAIN SETUP: Zone [${cleanDomain}] is already ACTIVE. Automating routing...`);
-        const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-email-worker';
+        const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'TMAIL.PK-email-worker';
         
         // Setup DNS first
         await cloudflare.setupEmailDNS(zone.id);

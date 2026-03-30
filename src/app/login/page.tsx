@@ -47,8 +47,8 @@ function LoginContent() {
           if (names.length > 0 && !selectedDomain) setSelectedDomain(names[0]);
           
           // Pre-fill from localStorage if available
-          const storedAddr = localStorage.getItem("quamify_active_email");
-          const storedPass = localStorage.getItem("quamify_guest_password");
+          const storedAddr = localStorage.getItem("TMAIL.PK_active_email");
+          const storedPass = localStorage.getItem("TMAIL.PK_guest_password");
           
           if (storedAddr && storedAddr.includes("@")) {
             setFullEmail(storedAddr);
@@ -116,22 +116,45 @@ function LoginContent() {
         return;
       }
 
-      // 3. Fallback: Search for guest mailbox if standard login failed
+      // 3. Fallback: Search for guest mailbox or reserved user email if standard login failed
       try {
         const [prefix, domain] = loginEmail.split('@');
-        const mailbox = await domainService.verifyGuestMailbox(prefix, password);
-        if (mailbox) {
-          localStorage.setItem("quamify_active_email", mailbox.email_address);
-          localStorage.setItem("quamify_guest_activated", "true");
-          localStorage.setItem("quamify_guest_created_at", Date.now().toString());
-          localStorage.setItem("quamify_guest_password", password);
+        
+        // 3a. Check Guest Mailboxes
+        const guestMailbox = await domainService.verifyGuestMailbox(prefix, password);
+        if (guestMailbox) {
+          localStorage.setItem("TMAIL.PK_active_email", guestMailbox.email_address);
+          localStorage.setItem("TMAIL.PK_guest_activated", "true");
+          localStorage.setItem("TMAIL.PK_guest_created_at", Date.now().toString());
+          localStorage.setItem("TMAIL.PK_guest_password", password);
           
           setMessage({ type: 'success', text: 'Guest mailbox verified!' })
           setTimeout(() => window.location.href = '/', 1000)
           return;
         }
       } catch (guestErr) {
-        // If it's not a guest mailbox either, show the original auth error
+        // 3b. Check User Emails (reserved emails with passwords)
+        try {
+          const { data: userEmail, error: ueError } = await supabase
+            .from('user_emails')
+            .select('*')
+            .eq('email_address', loginEmail)
+            .eq('password', password)
+            .single();
+
+          if (userEmail) {
+            localStorage.setItem("TMAIL.PK_active_email", userEmail.email_address);
+            localStorage.setItem("TMAIL.PK_guest_activated", "false"); // It's a real user's reserved email
+            localStorage.setItem("TMAIL.PK_switched_manually", "true");
+            
+            setMessage({ type: 'success', text: 'Inbox access granted!' })
+            setTimeout(() => window.location.href = '/', 1000)
+            return;
+          }
+        } catch (ueErr) {
+          // If all fail, show the original auth error
+          throw authError;
+        }
         throw authError;
       }
     } catch (error: any) {

@@ -29,7 +29,7 @@ export default function PrivacyPage() {
               <h2 className="text-xl font-black uppercase tracking-tight italic text-white">1. Information We Collect</h2>
             </div>
             <p className="leading-relaxed">
-              Quamify Mail collect minimal information to provide temporary email services. This includes:
+              TMAIL.PK Mail collect minimal information to provide temporary email services. This includes:
             </p>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>IP addresses for rate limiting and security purposes.</li>

@@ -106,7 +106,7 @@ export default function Home() {
 
   const handleDomainChange = useCallback((newDomain: string) => {
     setSelectedDomain(newDomain);
-    localStorage.setItem("quamify_selected_domain", newDomain);
+    localStorage.setItem("TMAIL.PK_selected_domain", newDomain);
   }, []);
 
   const handleSwitchEmail = useCallback((newAddress: string) => {
@@ -117,6 +117,8 @@ export default function Home() {
     setSelectedEmailId(null);
     setShowSuccess(false);
     setSaveError(null);
+    localStorage.setItem('TMAIL.PK_switched_manually', 'true');
+    setTimeout(() => localStorage.removeItem('TMAIL.PK_switched_manually'), 5000);
   }, []);
 
   const handleSaveEmail = useCallback(async () => {
@@ -132,7 +134,7 @@ export default function Home() {
 
       try {
         // Check if this email is already confirmed in localStorage
-        const confirmedEmail = localStorage.getItem("quamify_last_confirmed_email");
+        const confirmedEmail = localStorage.getItem("TMAIL.PK_last_confirmed_email");
         if (confirmedEmail === address) {
           // Point 8: Strict check even for session restoration
           const isTaken = await domainService.isEmailTaken(address);
@@ -158,10 +160,10 @@ export default function Home() {
         setTimeout(() => setShowSuccess(false), 3000);
         setIsSavingEmail(false);
         // Persist local activation with 24-hour timestamp
-        localStorage.setItem("quamify_guest_activated", "true");
-        localStorage.setItem("quamify_guest_password", mailboxPassword);
-        localStorage.setItem("quamify_last_confirmed_email", address);
-        localStorage.setItem("quamify_guest_created_at", Date.now().toString());
+        localStorage.setItem("TMAIL.PK_guest_activated", "true");
+        localStorage.setItem("TMAIL.PK_guest_password", mailboxPassword);
+        localStorage.setItem("TMAIL.PK_last_confirmed_email", address);
+        localStorage.setItem("TMAIL.PK_guest_created_at", Date.now().toString());
       } catch (err: any) {
         const msg = err.message || "";
         setIsSavingEmail(false);
@@ -206,10 +208,12 @@ export default function Home() {
     
     const newPrefix = generateAsianName();
     setPrefix(newPrefix);
+    // Don't change selectedDomain if it's already set (especially for users)
+    if (!selectedDomain && verifiedDomains.length > 0) {
+      setSelectedDomain(verifiedDomains[0].domain_name);
+    }
     setIsAuto(true);
-    lastActivatedAddr.current = null; // Allow activation for new address
-    
-    // Always generate a secret key for unified persistence (logged-in or guest)
+    lastActivatedAddr.current = null; 
     setMailboxPassword(generateRandomPassword());
     setShowSuccess(false);
     setSaveError(null);
@@ -230,7 +234,7 @@ export default function Home() {
         await domainService.deleteGuestEmail(addr);
         // If current address is being deleted, generate new one
         if (address === addr) {
-          localStorage.removeItem("quamify_last_confirmed_email");
+          localStorage.removeItem("TMAIL.PK_last_confirmed_email");
           handleAutoGenerate();
         }
       }
@@ -259,7 +263,7 @@ export default function Home() {
         sender: "test@future.corp",
         subject: "Holographic Protocol Approved",
         recipient_address: address,
-        body_text: "Your temporary email sequence has been successfully initialized. Welcome to the Quamify network.\n\nKeep shifting the paradigm.",
+        body_text: "Your temporary email sequence has been successfully initialized. Welcome to the TMAIL.PK network.\n\nKeep shifting the paradigm.",
         received_at: new Date().toISOString()
       });
     } catch (e) {
@@ -274,7 +278,7 @@ export default function Home() {
     if (!address) return;
     try {
       const { error } = await supabase.from("emails").insert({
-        sender: "test@quamify.sbs",
+        sender: "test@TMAIL.PK.sbs",
         subject: "Welcome to your Holographic Inbox",
         recipient_address: address,
         body_text: "Your guest temporary mailbox is active and ready to receive. This is a simulated test message.",
@@ -315,25 +319,20 @@ export default function Home() {
   useEffect(() => {
     if (!user || authLoading) return;
 
-    // Once user emails are loaded, immediately activate the first one
     if (userEmails.length > 0) {
       const firstEmail = userEmails[0].email_address;
-      // Only switch if not already on this address to avoid flicker
-      if (address !== firstEmail) {
+      if (address !== firstEmail && !localStorage.getItem('TMAIL.PK_switched_manually')) {
         const [p, d] = firstEmail.split('@');
         setPrefix(p);
         setSelectedDomain(d);
         setIsAuto(false);
-        // Store in localStorage so the main init effect respects this choice
-        localStorage.setItem('quamify_active_email', firstEmail);
       }
-    } else if (userEmails.length === 0 && !localStorage.getItem('quamify_active_email')) {
-      // New user with no emails: use login prefix as starting point
-      const loginPrefix = user.email?.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') || '';
-      if (loginPrefix) {
-        setPrefix(loginPrefix);
-        setIsAuto(false);
-      }
+    } else if (userEmails.length === 0 && user?.email) {
+      const loginPrefix = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+      const loginDom = user.email.split('@')[1];
+      setPrefix(loginPrefix);
+      setSelectedDomain(loginDom);
+      setIsAuto(false);
     }
   }, [user, userEmails, authLoading]);
 
@@ -345,9 +344,9 @@ export default function Home() {
   useEffect(() => {
     if (authLoading) return;
 
-    const storedAddress = localStorage.getItem("quamify_active_email");
-    const storedDomain = localStorage.getItem("quamify_selected_domain");
-    const forceNew = sessionStorage.getItem("forceNewQuamifyEmail");
+    const storedAddress = localStorage.getItem("TMAIL.PK_active_email");
+    const storedDomain = localStorage.getItem("TMAIL.PK_selected_domain");
+    const forceNew = sessionStorage.getItem("forceNewTMAIL.PKEmail");
 
     if (forceNew === "true" || !storedAddress || !storedAddress.includes("@")) {
       if (user && userEmails.length > 0) {
@@ -364,15 +363,15 @@ export default function Home() {
         setIsAuto(true);
         setMailboxPassword(generateRandomPassword());
         // Track guest creation time
-        if (!localStorage.getItem("quamify_guest_created_at")) {
-          localStorage.setItem("quamify_guest_created_at", Date.now().toString());
+        if (!localStorage.getItem("TMAIL.PK_guest_created_at")) {
+          localStorage.setItem("TMAIL.PK_guest_created_at", Date.now().toString());
         }
       }
-      sessionStorage.removeItem("forceNewQuamifyEmail");
+      sessionStorage.removeItem("forceNewTMAIL.PKEmail");
     } else {
       // Check 1-day session for anonymous users
       if (!user) {
-        const createdAt = localStorage.getItem("quamify_guest_created_at");
+        const createdAt = localStorage.getItem("TMAIL.PK_guest_created_at");
         if (createdAt) {
           const oneDay = 24 * 60 * 60 * 1000;
           if (Date.now() - parseInt(createdAt) > oneDay) {
@@ -388,7 +387,7 @@ export default function Home() {
       setSaveError(null);
       
       // Restore guest password if it exists
-      const storedPass = localStorage.getItem("quamify_guest_password");
+      const storedPass = localStorage.getItem("TMAIL.PK_guest_password");
       if (storedPass) {
         setMailboxPassword(storedPass);
       }
@@ -438,7 +437,7 @@ export default function Home() {
     }
 
     // If this is the confirmed email in localStorage, restore silently
-    const confirmedEmail = localStorage.getItem("quamify_last_confirmed_email");
+    const confirmedEmail = localStorage.getItem("TMAIL.PK_last_confirmed_email");
     if (confirmedEmail === currentAddr) {
       lastActivatedAddr.current = currentAddr;
       setUserEmails(prev => {
@@ -458,12 +457,12 @@ export default function Home() {
   }, [user, prefix, mailboxPassword, selectedDomain, verifiedDomains.length, isSavingEmail, showSuccess, handleSaveEmail, userEmails]);
 
   useEffect(() => {
-    if (address) localStorage.setItem("quamify_active_email", address);
+    if (address) localStorage.setItem("TMAIL.PK_active_email", address);
   }, [address]);
 
   useEffect(() => {
     if (mailboxPassword) {
-      localStorage.setItem("quamify_guest_password", mailboxPassword);
+      localStorage.setItem("TMAIL.PK_guest_password", mailboxPassword);
     }
   }, [mailboxPassword]);
 

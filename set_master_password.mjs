@@ -21,7 +21,7 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 
 async function setMasterPassword() {
   const email = 'abcd@artradering.com'
-  const password = 'QuamifyMaster2026!' // Temporary strong password
+  const password = 'TMAIL.PKMaster2026!' // Temporary strong password
   
   console.log(`Setting password for ${email}...`)
   

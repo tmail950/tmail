@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     }
 
     // 5. Setup Email Routing (Worker & DNS)
-    const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-email-worker';
+    const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'TMAIL.PK-email-worker';
     console.log(`CLOUDFLARE: Setting up Email Routing for zone ${zone.id} with worker ${workerName}`);
     try {
       await cloudflare.setupEmailRouting(zone.id, workerName);

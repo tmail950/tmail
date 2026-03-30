@@ -15,7 +15,7 @@ export default function NotFound() {
         </div>
       </div>
       <p className="text-gray-500 max-w-md font-medium">
-        The requested transmission could not be found in the Quamify network. 
+        The requested transmission could not be found in the TMAIL.PK network. 
         The sequence may have expired or never existed.
       </p>
       <Link 

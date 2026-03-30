@@ -19,8 +19,8 @@ export default function DomainSetupInstructions({ domainName, verificationToken 
 
   const records = [
     { type: 'TXT', host: '@', value: verificationToken, purpose: 'Verification' },
-    { type: 'MX', host: '@', value: 'mx1.quamify.mail', priority: '10', purpose: 'Receiving' },
-    { type: 'MX', host: '@', value: 'mx2.quamify.mail', priority: '20', purpose: 'Receiving' },
+    { type: 'MX', host: '@', value: 'mx1.TMAIL.PK.mail', priority: '10', purpose: 'Receiving' },
+    { type: 'MX', host: '@', value: 'mx2.TMAIL.PK.mail', priority: '20', purpose: 'Receiving' },
   ]
 
   return (

@@ -1,4 +1,4 @@
--- SQL for Quamify Professional Upgrade
+-- SQL for TMAIL.PK Professional Upgrade
 
 -- 1. Platforms Domains Table (Disposable Domains provided by the platform)
 CREATE TABLE IF NOT EXISTS public.domains (
@@ -33,6 +33,6 @@ CREATE POLICY "Admins can manage platform domains"
 -- Initial Professional Domains
 INSERT INTO public.domains (domain_name) VALUES 
 ('sharebot.net'),
-('quamify-mail.com'),
+('TMAIL.PK-mail.com'),
 ('temp-mail.pro')
 ON CONFLICT (domain_name) DO NOTHING;

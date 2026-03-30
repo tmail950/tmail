@@ -66,7 +66,7 @@ export async function POST(request: Request) {
         }
     }
 
-    const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-email-worker';
+    const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'TMAIL.PK-email-worker';
     try {
       await cloudflare.setupEmailDNS(zoneId);
       await cloudflare.setupGeneralDNS(zoneId, domain.domain_name);

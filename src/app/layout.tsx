@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Quamify Mail | Secure Temp Email",
+  title: "TMAIL.PK Mail | Secure Temp Email",
   description: "Next-generation temporary email infrastructure.",
   icons: {
     icon: '/icon.svg',

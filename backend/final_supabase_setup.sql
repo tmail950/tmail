@@ -1,4 +1,4 @@
--- QUAMIFY MAIL: FINAL GUEST & EMAIL RLS SETUP
+-- TMAIL.PK MAIL: FINAL GUEST & EMAIL RLS SETUP
 -- Execute this script in your Supabase SQL Editor to enable all guest and holographic features.
 
 -- 1. Guest Mailboxes Infrastructure
@@ -42,7 +42,7 @@ CREATE POLICY "Unified email selection"
         )
         OR 
         -- Platform default (everyone)
-        public.emails.recipient_address LIKE '%@quamify-mail.com'
+        public.emails.recipient_address LIKE '%@TMAIL.PK-mail.com'
         OR
         -- For guests (check address exists in guest table)
         EXISTS (

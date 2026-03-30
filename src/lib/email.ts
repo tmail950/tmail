@@ -21,7 +21,7 @@ export const emailService = {
           'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          from: 'Quamify Security <security@quammify.sbs>',
+          from: 'TMAIL.PK Security <security@quammify.sbs>',
           to: email,
           subject: 'Master Access OTP: Verification Required',
           html: `
@@ -33,7 +33,7 @@ export const emailService = {
               </div>
               <p style="color: #94a3b8; font-size: 11px; text-transform: uppercase; font-weight: 700;">Code expires in 10 minutes. If you did not request this, please secure your account immediately.</p>
               <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;" />
-              <p style="color: #cbd5e1; font-size: 10px; text-align: center;">© 2026 Quamify Security Nodes</p>
+              <p style="color: #cbd5e1; font-size: 10px; text-align: center;">© 2026 TMAIL.PK Security Nodes</p>
             </div>
           `,
         }),
@@ -61,13 +61,13 @@ export const emailService = {
           'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          from: 'Quamify Security <security@quammify.sbs>',
+          from: 'TMAIL.PK Security <security@quammify.sbs>',
           to: email,
           subject: 'Action Required: Verify New Master Email',
           html: `
             <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 40px; border: 1px solid #eee; border-radius: 20px;">
               <h1 style="color: #16a34a; font-size: 24px; font-weight: 900; text-transform: uppercase;">Verify New Email</h1>
-              <p style="color: #666; font-size: 14px;">Your email has been set as the new Master Admin for Quamify. Please check your inbox for the official Supabase verification link to activate this change.</p>
+              <p style="color: #666; font-size: 14px;">Your email has been set as the new Master Admin for TMAIL.PK. Please check your inbox for the official Supabase verification link to activate this change.</p>
               <p style="color: #94a3b8; font-size: 11px;">Once verified, the previous master email will no longer have access.</p>
             </div>
           `,
@@ -95,7 +95,7 @@ export const emailService = {
           'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          from: 'Quamify Security <security@quammify.sbs>',
+          from: 'TMAIL.PK Security <security@quammify.sbs>',
           to: adminEmail,
           subject: 'Action Required: Password Reset Request',
           html: `
@@ -108,7 +108,7 @@ export const emailService = {
               </div>
               <p style="color: #666; font-size: 13px;">Please verify the user's identity and provide them with a new secret key manually via your established secure channels.</p>
               <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;" />
-              <p style="color: #cbd5e1; font-size: 10px; text-align: center;">© 2026 Quamify Security Nodes</p>
+              <p style="color: #cbd5e1; font-size: 10px; text-align: center;">© 2026 TMAIL.PK Security Nodes</p>
             </div>
           `,
         }),
