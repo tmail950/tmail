@@ -468,12 +468,12 @@ export default function Home() {
   }, [mailboxPassword]);
 
   // 5. External Hook Usage
-  const { emails, isLoading } = useEmails(address);
+  const isAddressSaved = useMemo(() => userEmails.some(e => e.email_address === address), [userEmails, address]);
+  const { emails, isLoading } = useEmails(isAddressSaved ? address : null);
   const selectedEmail = emails.find((e) => e.id === selectedEmailId) || null;
 
   // Memoize addresses to prevent HeroAddress re-renders
   const savedAddressList = useMemo(() => userEmails.map(e => e.email_address), [userEmails]);
-  const isAddressSaved = useMemo(() => userEmails.some(e => e.email_address === address), [userEmails, address]);
 
   if (!isMounted) return null;
 

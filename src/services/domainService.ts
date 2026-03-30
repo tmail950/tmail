@@ -313,22 +313,6 @@ export const domainService = {
         throw new Error(`Database Error: ${error.message}`);
       }
       
-      // If a password was provided, also ensure it exists in the guest_mailboxes 
-      // so it can be accessed after sign-out (Unified Persistence)
-      if (password) {
-        try {
-          await supabase
-            .from('guest_mailboxes')
-            .upsert({ 
-              email_address: cleanAddress, 
-              password_hash: password 
-            }, { onConflict: 'email_address' });
-          console.log(`DOMAINS: Synchronized credentials for ${cleanAddress}`);
-        } catch (syncErr) {
-          console.error("DOMAINS: Failed to sync guest credentials:", syncErr);
-        }
-      }
-      
       const record = Array.isArray(data) ? data[0] : data;
       if (!record) {
         console.error(`DOMAINS: No data returned for ${cleanAddress}`);
