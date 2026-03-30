@@ -93,38 +93,24 @@ export default function AdminSettings() {
       setMessage({ type: 'error', text: 'Enter new email and new password first.' })
       return
     }
-    setEmailChangeSending(true)
-    try {
-      const res = await fetch('/api/admin/send-change-otp', { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      
-      if (data.dev_otp) {
-        setDevOtp(data.dev_otp)
-        setTimeout(() => setDevOtp(null), 10000)
-      }
-      
-      setEmailChangeStep('verify')
-      setMessage({ type: 'success', text: 'OTP sent to current master email!' })
-    } catch (e: any) {
-      setMessage({ type: 'error', text: e.message })
-    } finally {
-      setEmailChangeSending(false)
-    }
+    
+    // Point 1: Direct update without OTP from dashboard
+    confirmEmailChange("DIRECT_UPDATE");
   }
 
-  const confirmEmailChange = async () => {
-    if (!emailChangeOtp) return
+  const confirmEmailChange = async (otpOverride?: string) => {
+    const finalOtp = otpOverride || emailChangeOtp;
+    if (!finalOtp) return
     setEmailChangeSending(true)
     try {
       const res = await fetch('/api/admin/confirm-change-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ otp: emailChangeOtp, newEmail: newMasterEmail, newPassword: newMasterPassword })
+        body: JSON.stringify({ otp: finalOtp, newEmail: newMasterEmail, newPassword: newMasterPassword })
       })
       if (!res.ok) throw new Error((await res.json()).error)
       const data = await res.json()
-      setMessage({ type: 'success', text: data.message || 'Master email updated & verification sent!' })
+      setMessage({ type: 'success', text: data.message || 'Master email updated successfully!' })
       setShowEmailChange(false)
       setEmailChangeStep('form')
       setNewMasterEmail('')
@@ -198,10 +184,10 @@ export default function AdminSettings() {
                       onClick={() => setShowEmailChange(true)}
                       className="px-4 py-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest border border-red-500/20 transition-all whitespace-nowrap"
                     >
-                      Change Email
+                      Update Master Credentials
                     </button>
                   </div>
-                  <p className="text-[9px] text-gray-600 font-medium italic">Changing master email requires OTP verification to current email. A new password must be set.</p>
+                  <p className="text-[9px] text-gray-600 font-medium italic">Directly update the system's root identification. Changes take effect on next login.</p>
                 </div>
 
                 {/* Support Email */}
@@ -400,7 +386,7 @@ export default function AdminSettings() {
                       className="w-full px-5 py-5 rounded-2xl bg-white/5 border border-white/10 focus:border-green-500/50 outline-none text-white font-mono text-3xl tracking-[0.5em] text-center transition-all"
                     />
                     <button
-                      onClick={confirmEmailChange}
+                      onClick={() => confirmEmailChange()}
                       disabled={emailChangeSending || emailChangeOtp.length < 6}
                       className="w-full py-4 rounded-2xl bg-green-600 hover:bg-green-500 text-white font-black uppercase tracking-widest text-[10px] transition-all disabled:opacity-50"
                     >

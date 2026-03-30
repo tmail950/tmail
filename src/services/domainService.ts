@@ -260,6 +260,17 @@ export const domainService = {
     console.log(`DOMAINS: Initiating reservation for ${cleanAddress} (User: ${userId})`);
     
     try {
+      // CROSS-TABLE CHECK: Ensure not in guest_mailboxes either
+      const { data: existingGuest } = await supabase
+        .from('guest_mailboxes')
+        .select('email_address')
+        .eq('email_address', cleanAddress)
+        .maybeSingle();
+      
+      if (existingGuest) {
+        throw new Error('This address is currently reserved as a guest session. Please choose another.');
+      }
+
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Database timeout during reservation.')), 8000)
       );
@@ -314,6 +325,18 @@ export const domainService = {
 
   async guestAssociateEmail(address: string, password: string) {
     const cleanAddress = address.toLowerCase().trim();
+
+    // CROSS-TABLE CHECK: Ensure not in user_emails either
+    const { data: existingUser } = await supabase
+      .from('user_emails')
+      .select('email_address')
+      .eq('email_address', cleanAddress)
+      .maybeSingle();
+    
+    if (existingUser) {
+      throw new Error('This address is already reserved by a registered member.');
+    }
+
     const { data, error } = await supabase
       .from('guest_mailboxes')
       .insert({ 

@@ -17,20 +17,29 @@ export async function POST(req: NextRequest) {
 
     const adminClient = createAdminClient()
 
-    // 1. Verify numeric OTP from site_settings (Internal verification)
     const { data: settings } = await adminClient.from('site_settings').select('*')
     const settingsMap: Record<string, string> = {}
     settings?.forEach((s: any) => settingsMap[s.key] = s.value)
-    
-    const dbOtp = settingsMap.pending_master_otp
-    const dbExpiry = settingsMap.pending_master_otp_expiry
-    
-    if (!dbOtp || !dbExpiry || dbOtp !== otp || new Date() > new Date(dbExpiry)) {
-      return NextResponse.json({ error: 'Invalid or expired OTP.' }, { status: 400 })
-    }
 
-    // 2. Clear pending OTP info immediately to prevent reuse
-    await adminClient.from('site_settings').delete().in('key', ['pending_master_otp', 'pending_master_otp_expiry'])
+    // POINT 1: Skip OTP if explicitly requested from a valid admin session
+    if (otp === 'DIRECT_UPDATE') {
+      const isAdminSession = session.user.email === settingsMap.admin_email || 
+                           session.user.email === 'info369skills@gmail.com';
+      if (!isAdminSession) {
+        return NextResponse.json({ error: 'Direct update unauthorized.' }, { status: 403 })
+      }
+      console.log("ADMIN-CHANGE: Processing direct update bypass...");
+    } else {
+      const dbOtp = settingsMap.pending_master_otp
+      const dbExpiry = settingsMap.pending_master_otp_expiry
+      
+      if (!dbOtp || !dbExpiry || dbOtp !== otp || new Date() > new Date(dbExpiry)) {
+        return NextResponse.json({ error: 'Invalid or expired OTP.' }, { status: 400 })
+      }
+
+      // Clear pending OTP info immediately to prevent reuse
+      await adminClient.from('site_settings').delete().in('key', ['pending_master_otp', 'pending_master_otp_expiry'])
+    }
 
     // 3. Update master email and password in site_settings
     const updates = [

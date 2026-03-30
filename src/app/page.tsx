@@ -106,6 +106,7 @@ export default function Home() {
 
   const handleDomainChange = useCallback((newDomain: string) => {
     setSelectedDomain(newDomain);
+    localStorage.setItem("quamify_selected_domain", newDomain);
   }, []);
 
   const handleSwitchEmail = useCallback((newAddress: string) => {
@@ -364,6 +365,7 @@ export default function Home() {
     if (authLoading) return;
 
     const storedAddress = localStorage.getItem("quamify_active_email");
+    const storedDomain = localStorage.getItem("quamify_selected_domain");
     const forceNew = sessionStorage.getItem("forceNewQuamifyEmail");
 
     if (forceNew === "true" || !storedAddress || !storedAddress.includes("@")) {
@@ -399,7 +401,8 @@ export default function Home() {
       }
       const [storedPrefix, storedDom] = storedAddress.split("@");
       setPrefix(storedPrefix);
-      setSelectedDomain(storedDom);
+      // Use stored domain if available, otherwise use domain from address
+      setSelectedDomain(storedDomain || storedDom);
       setIsAuto(false);
       setSaveError(null);
       
@@ -438,9 +441,9 @@ export default function Home() {
     }
   }, [verifiedDomains, selectedDomain, user]);
 
-  // Auto-activate guest mailbox logic - more robust dependencies
+  // Auto-activate mailbox logic
   useEffect(() => {
-    if (user || !prefix || !mailboxPassword || verifiedDomains.length === 0 || !selectedDomain || isSavingEmail || showSuccess) return;
+    if (!prefix || !mailboxPassword || verifiedDomains.length === 0 || !selectedDomain || isSavingEmail || showSuccess) return;
 
     const currentAddr = `${prefix.toLowerCase().replace(/[^a-z0-9]/g, '')}@${selectedDomain}`;
     
@@ -453,35 +456,35 @@ export default function Home() {
       return;
     }
 
-    // KEY FIX: If this is the confirmed email in localStorage, restore silently without calling API
+    // If this is the confirmed email in localStorage, restore silently
     const confirmedEmail = localStorage.getItem("quamify_last_confirmed_email");
     if (confirmedEmail === currentAddr) {
       lastActivatedAddr.current = currentAddr;
       setUserEmails(prev => {
         if (prev.some(e => e.email_address === currentAddr)) return prev;
-        return [{ email_address: currentAddr, guest: true }, ...prev];
+        return [{ email_address: currentAddr, guest: !user, user_id: user?.id }, ...prev];
       });
       return;
     }
 
     const timer = setTimeout(() => {
-      console.log("AUTO: Activating guest holographic inbox for", currentAddr);
+      console.log("AUTO: Activating holographic inbox for", currentAddr);
       lastActivatedAddr.current = currentAddr;
       handleSaveEmail();
     }, 1000);
     
     return () => clearTimeout(timer);
-  }, [user, prefix, mailboxPassword, selectedDomain, verifiedDomains.length, isSavingEmail, showSuccess, handleSaveEmail]);
+  }, [user, prefix, mailboxPassword, selectedDomain, verifiedDomains.length, isSavingEmail, showSuccess, handleSaveEmail, userEmails]);
 
   useEffect(() => {
     if (address) localStorage.setItem("quamify_active_email", address);
   }, [address]);
 
   useEffect(() => {
-    if (!user && mailboxPassword) {
+    if (mailboxPassword) {
       localStorage.setItem("quamify_guest_password", mailboxPassword);
     }
-  }, [user, mailboxPassword]);
+  }, [mailboxPassword]);
 
   // 5. External Hook Usage
   const { emails, isLoading } = useEmails(address);
@@ -576,6 +579,7 @@ export default function Home() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 bg-black/80 backdrop-blur-md"
+              onClick={() => setSelectedEmailId(null)}
             >
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 40 }}
@@ -583,19 +587,29 @@ export default function Home() {
                 exit={{ opacity: 0, scale: 0.95, y: 40 }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
                 className="w-full max-w-5xl h-full max-h-[90vh] relative"
+                onClick={(e) => e.stopPropagation()}
               >
-                {/* X Button outside the clipped container — always visible */}
-                <button 
-                  onClick={() => setSelectedEmailId(null)}
-                  className="absolute -top-4 -right-4 z-[200] w-10 h-10 flex items-center justify-center rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white transition-all transform hover:rotate-90 active:scale-90 shadow-xl"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-
                 <div className="absolute -inset-1 bg-gradient-to-r from-[var(--color-brand-purple)] via-[var(--color-brand-pink)] to-[var(--color-brand-orange)] rounded-[40px] blur-2xl opacity-40 animate-pulse-glow pointer-events-none"></div>
                 <div className="w-full h-full bg-[#050505]/95 rounded-[40px] relative overflow-hidden border border-white/10 shadow-2xl flex flex-col">
                   <div className="flex-1 overflow-hidden">
-                    <EmailViewer email={selectedEmail} />
+                    <EmailViewer 
+                      email={selectedEmail} 
+                      onClose={() => setSelectedEmailId(null)}
+                      onNext={() => {
+                        const idx = emails.findIndex(e => e.id === selectedEmailId);
+                        if (idx !== -1 && idx < emails.length - 1) {
+                          setSelectedEmailId(emails[idx + 1].id);
+                        }
+                      }}
+                      onPrev={() => {
+                        const idx = emails.findIndex(e => e.id === selectedEmailId);
+                        if (idx > 0) {
+                          setSelectedEmailId(emails[idx - 1].id);
+                        }
+                      }}
+                      hasNext={emails.findIndex(e => e.id === selectedEmailId) < emails.length - 1}
+                      hasPrev={emails.findIndex(e => e.id === selectedEmailId) > 0}
+                    />
                   </div>
                 </div>
               </motion.div>
