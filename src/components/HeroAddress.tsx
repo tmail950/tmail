@@ -28,11 +28,11 @@ interface HeroAddressProps {
   onSimulate?: () => void;
 }
 
-const HeroAddress = ({ 
-  emailAddress, 
-  prefix, 
-  onPrefixChange, 
-  onAutoGenerate, 
+const HeroAddress = ({
+  emailAddress,
+  prefix,
+  onPrefixChange,
+  onAutoGenerate,
   isAuto,
   selectedDomain,
   verifiedDomains,
@@ -66,7 +66,7 @@ const HeroAddress = ({
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
@@ -74,17 +74,17 @@ const HeroAddress = ({
     >
       <div className="relative group w-full max-w-3xl">
         <div className="absolute -inset-1 bg-gradient-to-r from-[--color-brand-purple] via-[--color-brand-pink] to-[--color-brand-orange] rounded-[40px] blur-2xl opacity-20 group-hover:opacity-40 transition duration-1000 animate-pulse-glow"></div>
-        
+
         <div className="relative bg-black/40 backdrop-blur-md sm:backdrop-blur-2xl rounded-[30px] sm:rounded-[40px] p-6 sm:p-12 border border-white/10 flex flex-col items-center text-center overflow-hidden">
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none opacity-30"></div>
-          
+
           <div className="flex items-center gap-2 mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-[--color-brand-pink] animate-ping"></span>
             <h2 className="text-xs font-black text-gray-400 tracking-[0.3em] uppercase relative z-10">
-              Active Inbox
+              ACTIVE INBOX
             </h2>
           </div>
-          
+
           <div className="flex flex-col gap-8 w-full relative z-10">
             {/* Main Interactive Address Input */}
             <div className={`flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 w-full p-4 sm:p-6 rounded-[24px] sm:rounded-[32px] bg-white/[0.03] border border-white/5 group-hover:border-white/10 transition-all mb-8`}>
@@ -92,8 +92,8 @@ const HeroAddress = ({
                 type="text"
                 value={prefix}
                 onChange={(e) => onPrefixChange(e.target.value)}
-                readOnly={!isLoggedIn && !isAuto}
-                className={`w-full sm:flex-1 bg-transparent text-2xl sm:text-3xl font-black text-white outline-none min-w-0 text-center sm:text-left pr-10 ${!isLoggedIn && !isAuto ? 'cursor-default' : ''}`}
+                readOnly={true}
+                className="w-full sm:flex-1 bg-transparent text-2xl sm:text-3xl font-black text-white outline-none min-w-0 text-center sm:text-left pr-10 cursor-default"
                 placeholder="prefix"
               />
               <button
@@ -111,10 +111,10 @@ const HeroAddress = ({
               </button>
               <span className="text-2xl text-gray-600 font-light my-1 sm:my-0">@</span>
               <div className="relative w-full sm:w-auto overflow-hidden group/dom">
-                <select 
+                <select
                   value={selectedDomain}
                   onChange={(e) => onDomainChange(e.target.value)}
-                  disabled={!isLoggedIn}
+                  disabled={isLoggedIn}
                   className={`w-full sm:w-auto bg-white/5 hover:bg-white/10 text-base sm:text-lg font-bold text-gray-300 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl outline-none cursor-pointer appearance-none transition-all text-center sm:text-left min-w-[140px] ${!isLoggedIn ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {verifiedDomains.length > 0 ? (
@@ -133,10 +133,10 @@ const HeroAddress = ({
                   )}
                 </select>
                 {!isLoggedIn && (
-                  <button 
+                  <button
                     type="button"
                     onClick={() => onPrefixChange?.("_LOCK_MSG_")}
-                    className="absolute inset-0 cursor-pointer z-10 w-full h-full bg-transparent border-none appearance-none" 
+                    className="absolute inset-0 cursor-pointer z-10 w-full h-full bg-transparent border-none appearance-none"
                     title="Create account for more multiple domains"
                   ></button>
                 )}
@@ -179,13 +179,13 @@ const HeroAddress = ({
             </div>
 
             {error && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="text-red-400 text-[10px] font-bold uppercase tracking-widest bg-red-500/10 border border-red-500/20 px-6 py-3 rounded-2xl mx-auto max-w-md"
               >
-                {error.toLowerCase().includes("taken") || error.toLowerCase().includes("unique") 
-                  ? "This address is already taken. Try another." 
+                {error.toLowerCase().includes("taken") || error.toLowerCase().includes("unique")
+                  ? "This address is already taken. Try another."
                   : error}
               </motion.div>
             )}
@@ -193,16 +193,15 @@ const HeroAddress = ({
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-4 w-full">
               <button
                 onClick={onAutoGenerate}
-                className={`w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 sm:py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
-                  isAuto 
-                    ? "bg-[var(--color-brand-pink)] text-white shadow-[0_0_20px_var(--color-brand-pink)]/40" 
+                className={`w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 sm:py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${isAuto
+                    ? "bg-[var(--color-brand-pink)] text-white shadow-[0_0_20px_var(--color-brand-pink)]/40"
                     : "bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/5"
-                }`}
+                  }`}
               >
-              <Wand2 className="w-4 h-4" />
-                Regenerate
+                <Wand2 className="w-4 h-4" />
+                REGENERATE
               </button>
-              
+
               <button
                 onClick={() => {
                   if (!emailAddress) return;
@@ -212,14 +211,13 @@ const HeroAddress = ({
                   setTimeout(() => setCopied(false), 2000);
                 }}
                 disabled={!emailAddress}
-                className={`w-full sm:flex-1 flex items-center justify-center gap-3 px-8 py-4 sm:py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${
-                  copied 
-                    ? "bg-green-500 text-white shadow-[0_0_30px_rgba(34,197,94,0.5)]" 
+                className={`w-full sm:flex-1 flex items-center justify-center gap-3 px-8 py-4 sm:py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${copied
+                    ? "bg-green-500 text-white shadow-[0_0_30px_rgba(34,197,94,0.5)]"
                     : "bg-white text-black hover:shadow-[0_0_30px_rgba(255,18,177,0.3)] hover:scale-[1.02] active:scale-95 disabled:opacity-50"
-                }`}
+                  }`}
               >
                 {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                {copied ? "Copied" : "Copy Credentials"}
+                {copied ? "COPIED" : "COPY CREDENTIALS"}
               </button>
 
               {(isSaved || showSuccess) && !sessionExpired && (
@@ -254,17 +252,16 @@ const HeroAddress = ({
             {/* Saved Addresses Quick Switcher */}
             {savedAddresses.length > 0 && (
               <div className="flex flex-col items-center gap-4 mt-4 py-6 border-t border-white/5">
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Previous Emails ({savedAddresses.length})</span>
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">RESERVES EMAILS ({savedAddresses.length})</span>
                 <div className="flex flex-wrap justify-center gap-2 max-w-2xl px-4">
                   {savedAddresses.map((addr) => (
                     <div key={addr} className="flex items-center gap-1 group/addr">
                       <button
                         onClick={() => onSwitchAddress?.(addr)}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-bold transition-all border ${
-                          addr === emailAddress
+                        className={`px-4 py-2 rounded-xl text-[10px] font-bold transition-all border ${addr === emailAddress
                             ? "bg-[var(--color-brand-pink)]/20 text-[var(--color-brand-pink)] border-[var(--color-brand-pink)]/40 shadow-[0_0_15px_rgba(255,18,177,0.2)]"
                             : "bg-white/5 text-gray-400 border-white/5 hover:border-white/20 hover:text-white"
-                        }`}
+                          }`}
                       >
                         {addr}
                       </button>
@@ -294,7 +291,7 @@ const HeroAddress = ({
               </div>
             )}
           </div>
-          
+
           <div className="mt-8 pt-8 border-t border-white/5 flex flex-wrap items-center justify-center gap-4 sm:gap-6">
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>

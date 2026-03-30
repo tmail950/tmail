@@ -52,7 +52,7 @@ const EmptyState = memo(({ isSaved = true }: EmptyStateProps) => {
         transition={{ delay: 0.2 }}
         className="mt-8 text-2xl font-semibold text-white tracking-wide uppercase italic"
       >
-        {!isSaved ? "Activation Required" : "Awaiting Transmissions"}
+        {!isSaved ? "RESERVATION REQUIRED" : "AWAITING EMAIL"}
       </motion.h3>
       
       <motion.p 
@@ -62,7 +62,7 @@ const EmptyState = memo(({ isSaved = true }: EmptyStateProps) => {
         className="mt-3 text-gray-400 max-w-sm"
       >
         {!isSaved 
-          ? "This holographic address is not yet reserved. Click 'Activate Inbox' to begin receiving encrypted mail."
+          ? "This TMAIL.PK address is not yet reserved. Click 'REGENERATE' to begin receiving mail."
           : "Your temporary inbox is active. Send an email to your address and it will materialize here."}
       </motion.p>
       

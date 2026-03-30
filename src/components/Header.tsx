@@ -118,20 +118,6 @@ const HeaderContent = memo(() => {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-6">
-          {/* Tech Stats - Desktop Only */}
-          <div className="hidden lg:flex items-center gap-6 border-x border-white/5 px-6 mx-2">
-            <div className="flex flex-col items-start">
-              <span className="text-[8px] text-gray-600 font-bold uppercase tracking-tighter">Nodes</span>
-              <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-[10px] text-gray-400 font-mono">ACTIVE</span>
-              </div>
-            </div>
-            <div className="flex flex-col items-start">
-              <span className="text-[8px] text-gray-600 font-bold uppercase tracking-tighter">Enc</span>
-              <span className="text-[10px] text-gray-400 font-mono">AES-256</span>
-            </div>
-          </div>
 
           {mounted && (
             user ? (
