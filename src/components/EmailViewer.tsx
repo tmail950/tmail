@@ -14,6 +14,23 @@ interface EmailViewerProps {
 }
 
 /**
+ * Decodes Quoted-Printable encoded strings (common in emails).
+ * Handles soft line breaks (=\n) and hex escapes (=3D, =20 etc.)
+ */
+function decodeQuotedPrintable(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/=\r?\n/g, '')
+    .replace(/=([0-9A-F]{2})/gi, (_, hex) => {
+      try {
+        return String.fromCharCode(parseInt(hex, 16));
+      } catch (e) {
+        return `=${hex}`;
+      }
+    });
+}
+
+/**
  * Strips email headers (Received, ARC, DKIM, MIME etc.) and returns
  * only the actual message body.
  */
@@ -33,23 +50,20 @@ function extractBody(raw: string | null | undefined): string {
     bodyStart = doubleCrlf;
   }
   
-  if (bodyStart === -1) return raw.trim();
+  if (bodyStart === -1) return decodeQuotedPrintable(raw.trim());
   
   let content = raw.slice(bodyStart).trim();
   
   // Remove MIME headers and boundaries
-  // This regex looks for --boundary, Content-Type, Content-Transfer-Encoding etc.
   content = content.replace(/--[a-zA-Z0-9'()+ ,./:?=-]+(--)?/g, '');
   content = content.replace(/Content-Type: [^\n]+\n/gi, '');
   content = content.replace(/Content-Transfer-Encoding: [^\n]+\n/gi, '');
   content = content.replace(/Content-Id: [^\n]+\n/gi, '');
   content = content.replace(/Content-Description: [^\n]+\n/gi, '');
   content = content.replace(/Content-Disposition: [^\n]+\n/gi, '');
-  
-  // Also common headers if they somehow end up in the body
   content = content.replace(/charset="?[a-zA-Z0-9-]+"?(;)?/gi, '');
   
-  return content.trim();
+  return decodeQuotedPrintable(content.trim());
 }
 
 /** Pakistan Standard Time (UTC+5) formatter with AM/PM and full date. */
@@ -85,7 +99,8 @@ export default memo(function EmailViewer({
     );
   }
 
-  const cleanBody = extractBody(email.body_html ? undefined : email.body_text);
+  const cleanBodyText = extractBody(email.body_text);
+  const displayHtml = email.body_html ? decodeQuotedPrintable(email.body_html) : (cleanBodyText.toLowerCase().includes('<div') || cleanBodyText.toLowerCase().includes('<p') ? cleanBodyText : null);
 
   return (
     <div className="h-full w-full flex flex-col bg-[#050505] rounded-[32px] border border-white/10 overflow-hidden shadow-2xl relative">
@@ -186,10 +201,10 @@ export default memo(function EmailViewer({
       {/* Body Content - clean message only */}
       <div className="flex-1 p-8 sm:p-12 overflow-y-auto custom-scrollbar bg-black/10 z-10">
         <div className="max-w-4xl mx-auto">
-          {email.body_html ? (
+          {displayHtml ? (
             <div className="bg-white rounded-3xl overflow-hidden min-h-[500px] shadow-2xl">
               <iframe
-                srcDoc={email.body_html}
+                srcDoc={displayHtml}
                 className="w-full h-full min-h-[500px] border-0"
                 sandbox="allow-same-origin"
                 title="Email content"
@@ -197,7 +212,7 @@ export default memo(function EmailViewer({
             </div>
           ) : (
             <div className="text-gray-200 leading-relaxed whitespace-pre-wrap font-sans text-lg selection:bg-[var(--color-brand-pink)] selection:text-white pb-20">
-              {cleanBody || <span className="text-gray-600 italic font-medium">No decrypted content found in this transmission.</span>}
+              {cleanBodyText || <span className="text-gray-600 italic font-medium">No decrypted content found in this transmission.</span>}
             </div>
           )}
         </div>

@@ -125,14 +125,14 @@ const HeaderContent = memo(() => {
               <div className="flex items-center gap-2 sm:gap-4 sm:pl-4 sm:border-l border-white/10 relative">
                 {/* Multi-Account Switcher */}
                 <div className="hidden sm:flex items-center gap-1 mr-2 relative">
-                  <Link
-                    href="/login?signup=true"
+                  <button
+                    onClick={() => signOut('/login?signup=true')}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95 border border-white/5"
                     title="Create New Profile"
                   >
                     <PlusCircle className="w-3.5 h-3.5" />
                     Create Profile
-                  </Link>
+                  </button>
 
                   <button
                     onClick={() => setIsSwitchOpen(!isSwitchOpen)}

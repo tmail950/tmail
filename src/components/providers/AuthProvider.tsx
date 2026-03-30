@@ -10,7 +10,7 @@ interface AuthContextType {
   session: Session | null
   isAdmin: boolean | null
   isLoading: boolean
-  signOut: () => Promise<void>
+  signOut: (logoutNext?: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -18,7 +18,7 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   isAdmin: null,
   isLoading: true,
-  signOut: async () => {},
+  signOut: async (logoutNext?: string) => {},
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -125,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const signOut = async () => {
+  const signOut = async (logoutNext?: string) => {
     try {
       console.log("AUTH: Termination sequence initiated...");
       
@@ -136,7 +136,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // 2. Redirect to server-side signout endpoint (this clears cookies & redirects to /login)
       console.log("AUTH: Executing server-side termination...");
-      window.location.href = '/api/auth/signout';
+      const target = logoutNext ? `/api/auth/signout?next=${encodeURIComponent(logoutNext)}` : '/api/auth/signout';
+      window.location.href = target;
       
       // 3. Optional client-side cleanup if redirect takes time
       supabase.auth.signOut().catch(() => {});

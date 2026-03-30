@@ -34,6 +34,15 @@ function LoginContent() {
     if (isSignUp !== isSignupFromUrl) {
       setIsSignUp(isSignupFromUrl);
     }
+    
+    // Multi-profile session reset: if we are on signup page, clear existing session
+    // to allow creating a new account (since Supabase only allows one session)
+    if (isSignupFromUrl) {
+      supabase.auth.signOut().then(() => {
+        // Clear local guest state too
+        localStorage.removeItem('TMAIL.PK_guest_activated');
+      });
+    }
   }, [signupParam, isSignUp]);
 
   // Fetch domains and pre-fill from guest session
@@ -120,8 +129,12 @@ function LoginContent() {
       try {
         const [prefix, domain] = loginEmail.split('@');
         
-        // 3a. Check Guest Mailboxes
-        const guestMailbox = await domainService.verifyGuestMailbox(prefix, password);
+        // 3a. Check Guest Mailboxes (Try Prefix only, then Full Email)
+        let guestMailbox = await domainService.verifyGuestMailbox(prefix, password).catch(() => null);
+        if (!guestMailbox) {
+          guestMailbox = await domainService.verifyGuestMailbox(loginEmail, password).catch(() => null);
+        }
+
         if (guestMailbox) {
           localStorage.setItem("TMAIL.PK_active_email", guestMailbox.email_address);
           localStorage.setItem("TMAIL.PK_guest_activated", "true");

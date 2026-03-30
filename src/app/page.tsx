@@ -122,7 +122,7 @@ export default function Home() {
     setTimeout(() => localStorage.removeItem('TMAIL.PK_switched_manually'), 5000);
   }, []);
 
-  const handleSaveEmail = useCallback(async () => {
+  const handleSaveEmail = useCallback(async (isAutoSave = false) => {
     if (!user) {
       if (!address || !mailboxPassword) {
         setSaveError("Please set a password to activate your guest inbox.");
@@ -134,13 +134,10 @@ export default function Home() {
       setShowSuccess(false);
 
       try {
-        // Check if this email is already confirmed in localStorage
         const confirmedEmail = localStorage.getItem("TMAIL.PK_last_confirmed_email");
         if (confirmedEmail === address) {
-          // Point 8: Strict check even for session restoration
           const isTaken = await domainService.isEmailTaken(address);
           if (!isTaken) {
-            // If somehow it's not taken but was in our storage, we must re-associate
             await domainService.guestAssociateEmail(address, mailboxPassword);
           }
           
@@ -155,12 +152,10 @@ export default function Home() {
         }
 
         const guestMailbox = await domainService.guestAssociateEmail(address, mailboxPassword);
-        // Add to local userEmails to show as "Saved"
         setUserEmails(prev => [{ email_address: address, guest: true }, ...prev]);
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 3000);
         setIsSavingEmail(false);
-        // Persist local activation with 24-hour timestamp
         localStorage.setItem("TMAIL.PK_guest_activated", "true");
         localStorage.setItem("TMAIL.PK_guest_password", mailboxPassword);
         localStorage.setItem("TMAIL.PK_last_confirmed_email", address);
@@ -199,6 +194,14 @@ export default function Home() {
       clearTimeout(spinnerTimeout);
       setIsSavingEmail(false);
       const msg = err.message || "";
+      
+      // COLLISION AUTO-RETRY: If it's a collision during auto-gen, try again silently
+      if (isAutoSave && (msg.includes("unique") || msg.includes("taken"))) {
+        console.log("COLLISION: Auto-retrying generation...");
+        setTimeout(() => handleAutoGenerate(), 100);
+        return;
+      }
+
       setSaveError(msg || "Activation failure.");
       console.error("Save email error:", err);
     }
@@ -227,7 +230,7 @@ export default function Home() {
     // AUTO-ACTIVATE: If logged in, trigger save immediately
     if (user) {
       setTimeout(() => {
-        handleSaveEmail();
+        handleSaveEmail(true);
       }, 500);
     }
   }, [user, isSavingEmail, handleSaveEmail]);
@@ -456,7 +459,7 @@ export default function Home() {
     const timer = setTimeout(() => {
       console.log("AUTO: Activating holographic inbox for", currentAddr);
       lastActivatedAddr.current = currentAddr;
-      handleSaveEmail();
+      handleSaveEmail(true);
     }, 1000);
     
     return () => clearTimeout(timer);

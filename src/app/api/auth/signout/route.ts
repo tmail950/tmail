@@ -13,7 +13,9 @@ export async function POST(request: Request) {
   }
 
   // 3. Clear any local storage/cookies (handled by redirect & client-side purge)
-  const url = new URL('/login?logout=success', request.url)
+  const { searchParams } = new URL(request.url)
+  const next = searchParams.get('next') || '/login?logout=success'
+  const url = new URL(next, request.url)
   
   return NextResponse.redirect(url, {
     status: 302,
