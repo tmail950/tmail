@@ -125,6 +125,15 @@ const HeaderContent = memo(() => {
               <div className="flex items-center gap-2 sm:gap-4 sm:pl-4 sm:border-l border-white/10 relative">
                 {/* Multi-Account Switcher */}
                 <div className="hidden sm:flex items-center gap-1 mr-2 relative">
+                  <Link
+                    href="/login?signup=true"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95 border border-white/5"
+                    title="Create New Profile"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    Create Profile
+                  </Link>
+
                   <button
                     onClick={() => setIsSwitchOpen(!isSwitchOpen)}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all border border-white/5"
@@ -310,62 +319,8 @@ const HeaderContent = memo(() => {
     </header>
   );
 });
-      <AnimatePresence>
-        {showDeleteModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => !isDeleting && setShowDeleteModal(false)}
-              className="absolute inset-0 bg-black/90 backdrop-blur-md"
-            />
-            
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-lg glass-panel p-8 sm:p-12 rounded-[40px] border border-red-500/20 shadow-[0_0_50px_rgba(220,38,38,0.2)] bg-[#050505] overflow-hidden text-center"
-            >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent"></div>
-              
-              <div className="w-20 h-20 rounded-3xl bg-red-500/10 flex items-center justify-center mx-auto mb-8 border border-red-500/20 group animate-pulse">
-                <AlertTriangle className="w-10 h-10 text-red-500" />
-              </div>
 
-              <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter mb-4">
-                Confirm <span className="text-red-500">Purge</span>
-              </h2>
-              
-              <p className="text-gray-400 text-sm leading-relaxed mb-10 font-medium">
-                Are you absolutely sure? This will permanently delete your holographic identity, all reserved domains, and transmission history. <span className="text-red-500/80 italic font-black">This action is irreversible.</span>
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4">
-                <button
-                  disabled={isDeleting}
-                  onClick={confirmDeletion}
-                  className="flex-1 py-4 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-widest text-[10px] transition-all active:scale-[0.98] shadow-lg shadow-red-900/20 disabled:opacity-50"
-                >
-                  {isDeleting ? "Processing Purge..." : "YES, DELETE PERMANENTLY"}
-                </button>
-                <button
-                  disabled={isDeleting}
-                  onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 font-black uppercase tracking-widest text-[10px] transition-all disabled:opacity-50"
-                >
-                  NO, KEEP ACCOUNT
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      <div className="absolute bottom-0 left-4 right-4 h-[1px] bg-gradient-to-r from-transparent via-[var(--color-brand-pink)]/30 to-transparent"></div>
-    </header>
-  );
-});
+HeaderContent.displayName = "HeaderContent";
 
 export default function Header() {
   return (

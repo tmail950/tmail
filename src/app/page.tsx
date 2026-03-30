@@ -105,9 +105,10 @@ export default function Home() {
   }, [user]);
 
   const handleDomainChange = useCallback((newDomain: string) => {
+    if (user) return; // Prevent domain change for logged-in users
     setSelectedDomain(newDomain);
     localStorage.setItem("TMAIL.PK_selected_domain", newDomain);
-  }, []);
+  }, [user]);
 
   const handleSwitchEmail = useCallback((newAddress: string) => {
     const [newPrefix, newDom] = newAddress.split('@');
@@ -208,10 +209,15 @@ export default function Home() {
     
     const newPrefix = generateAsianName();
     setPrefix(newPrefix);
-    // Don't change selectedDomain if it's already set (especially for users)
-    if (!selectedDomain && verifiedDomains.length > 0) {
+
+    // If logged in, keep the current domain (which is forced to user email domain)
+    if (user?.email) {
+      const userDom = user.email.split('@')[1];
+      setSelectedDomain(userDom);
+    } else if (!selectedDomain && verifiedDomains.length > 0) {
       setSelectedDomain(verifiedDomains[0].domain_name);
     }
+    
     setIsAuto(true);
     lastActivatedAddr.current = null; 
     setMailboxPassword(generateRandomPassword());
@@ -458,7 +464,12 @@ export default function Home() {
 
   useEffect(() => {
     if (address) localStorage.setItem("TMAIL.PK_active_email", address);
-  }, [address]);
+    
+    // Extra safety: Always enforce logged-in domain
+    if (user?.email && selectedDomain !== user.email.split('@')[1]) {
+      setSelectedDomain(user.email.split('@')[1]);
+    }
+  }, [address, user, selectedDomain]);
 
   useEffect(() => {
     if (mailboxPassword) {
