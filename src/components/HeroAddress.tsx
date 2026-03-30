@@ -87,35 +87,41 @@ const HeroAddress = ({
 
           <div className="flex flex-col gap-8 w-full relative z-10">
             {/* Main Interactive Address Input */}
-            <div className={`flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 w-full p-4 sm:p-6 rounded-[24px] sm:rounded-[32px] bg-white/[0.03] border border-white/5 group-hover:border-white/10 transition-all mb-8`}>
-              <input
-                type="text"
-                value={prefix}
-                onChange={(e) => onPrefixChange(e.target.value)}
-                readOnly={true}
-                className="w-full sm:flex-1 bg-transparent text-2xl sm:text-3xl font-black text-white outline-none min-w-0 text-center sm:text-left pr-10 cursor-default"
-                placeholder="prefix"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(emailAddress);
-                  setPrefixCopied(true);
-                  setTimeout(() => setPrefixCopied(false), 2000);
-                }}
-                className={`flex items-center gap-1 p-2 rounded-lg transition-all ${prefixCopied ? 'text-green-400 bg-green-400/10' : 'text-gray-500 hover:text-white'}`}
-                title="Copy Full Address"
-              >
-                {prefixCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {prefixCopied && <span className="text-[8px] font-black uppercase">Copied</span>}
-              </button>
-              <span className="text-2xl text-gray-600 font-light my-1 sm:my-0">@</span>
+            <div className={`flex flex-col items-center justify-center gap-4 w-full p-4 sm:p-6 rounded-[24px] sm:rounded-[32px] bg-white/[0.03] border border-white/5 group-hover:border-white/10 transition-all mb-8 sm:flex-row sm:gap-4`}>
+              <div className="flex items-center justify-center gap-2 w-full sm:w-auto sm:flex-1">
+                <input
+                  type="text"
+                  value={prefix}
+                  onChange={(e) => onPrefixChange(e.target.value)}
+                  readOnly={true}
+                  className="bg-transparent text-2xl sm:text-3xl font-black text-white outline-none min-w-0 text-center sm:text-left cursor-default w-full sm:w-auto"
+                  placeholder="prefix"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(emailAddress);
+                    setPrefixCopied(true);
+                    setTimeout(() => setPrefixCopied(false), 2000);
+                  }}
+                  className={`flex items-center gap-1 p-2 rounded-lg transition-all ${prefixCopied ? 'text-green-400 bg-green-400/10' : 'text-gray-500 hover:text-white'}`}
+                  title="Copy Full Address"
+                >
+                  {prefixCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+
+              <span className="text-2xl text-gray-600 font-light hidden sm:inline">@</span>
+              <div className="sm:hidden w-8 h-[1px] bg-white/10"></div>
+              <span className="sm:hidden text-lg text-gray-700 font-black">@</span>
+              <div className="sm:hidden w-8 h-[1px] bg-white/10"></div>
+
               <div className="relative w-full sm:w-auto overflow-hidden group/dom">
                 <select
                   value={selectedDomain}
                   onChange={(e) => onDomainChange(e.target.value)}
                   disabled={isLoggedIn}
-                  className={`w-full sm:w-auto bg-white/5 hover:bg-white/10 text-base sm:text-lg font-bold text-gray-300 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl outline-none cursor-pointer appearance-none transition-all text-center sm:text-left min-w-[140px] ${!isLoggedIn ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`w-full sm:w-auto bg-white/5 hover:bg-white/10 text-base sm:text-lg font-bold text-gray-300 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl outline-none cursor-pointer appearance-none transition-all text-center sm:text-left min-w-[140px] ${isLoggedIn ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {verifiedDomains.length > 0 ? (
                     <>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe, Home, LogOut, Shield, Menu, X, ShieldCheck, FileText, Trash2, AlertTriangle, Users, PlusCircle } from "lucide-react";
+import { Globe, Home, LogOut, Shield, Menu, X, ShieldCheck, FileText, Trash2, AlertTriangle, Users, PlusCircle, LogIn } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useState, useEffect, Suspense, useMemo, memo, useCallback } from "react";
