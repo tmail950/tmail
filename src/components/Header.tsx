@@ -13,7 +13,6 @@ const HeaderContent = memo(() => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -119,7 +118,7 @@ const HeaderContent = memo(() => {
           ))}
         </nav>
 
-        <div className="flex items-center gap-2 sm:gap-6">
+        <div className="flex items-center gap-2 sm:gap-4">
 
           {mounted && (
             user ? (
@@ -239,7 +238,7 @@ const HeaderContent = memo(() => {
               <div className="flex items-center gap-2 sm:gap-4">
                 <Link 
                   href="/login"
-                  className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-gray-400 text-[10px] sm:text-xs font-black uppercase tracking-widest hover:text-white transition-all cursor-pointer"
+                  className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl border border-white/20 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all cursor-pointer bg-white/5"
                 >
                   Login
                 </Link>
@@ -252,79 +251,65 @@ const HeaderContent = memo(() => {
               </div>
             )
           )}
-
-          {/* Mobile Menu Button */}
-          <button 
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 rounded-xl hover:bg-white/5 text-gray-400 hover:text-white transition-colors cursor-pointer"
-          >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
         </div>
       </div>
 
-      {/* Mobile Nav Overlay */}
       <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="absolute top-full left-4 right-4 mt-2 md:hidden z-10"
-          >
-            <div className="glass-panel rounded-2xl p-4 space-y-4 border-[rgba(255,255,255,0.1)] shadow-[0_10px_40px_rgba(0,0,0,0.8)] bg-[#050505]/95 backdrop-blur-3xl">
-              {navLinks.map((link, idx) => (
-                <Link 
-                  key={`${link.href}-mobile-${idx}`}
-                  href={link.href} 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 p-3 rounded-xl transition-all ${link.active ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
-                >
-                  <link.icon className={`w-5 h-5 ${link.isAdmin ? 'text-red-500' : ''}`} />
-                  <span className="font-bold uppercase tracking-wider text-xs">{link.label}</span>
-                </Link>
-              ))}
-              {user && (
-                <div className="pt-4 mt-4 border-t border-white/10 space-y-4">
-                   <div className="flex items-center gap-3 px-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-brand-purple)] to-[var(--color-brand-pink)] flex items-center justify-center text-white text-sm font-black shadow-[0_0_15px_rgba(255,18,177,0.3)]">
-                        {user.email?.[0].toUpperCase()}
-                    </div>
-                    <div className="flex flex-col overflow-hidden">
-                        <span className="text-xs text-white font-black truncate w-full uppercase tracking-tighter">
-                          {user.user_metadata?.username || user.email?.split('@')[0]}
-                        </span>
-                        <span className="text-[8px] text-[var(--color-brand-pink)] font-black uppercase tracking-widest">Active Member</span>
-                    </div>
-                   </div>
+        {showDeleteModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !isDeleting && setShowDeleteModal(false)}
+              className="absolute inset-0 bg-black/90 backdrop-blur-md"
+            />
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-lg glass-panel p-8 sm:p-12 rounded-[40px] border border-red-500/20 shadow-[0_0_50px_rgba(220,38,38,0.2)] bg-[#050505] overflow-hidden text-center"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent"></div>
+              
+              <div className="w-20 h-20 rounded-3xl bg-red-500/10 flex items-center justify-center mx-auto mb-8 border border-red-500/20 group animate-pulse">
+                <AlertTriangle className="w-10 h-10 text-red-500" />
+              </div>
 
-                    <div className="grid grid-cols-1 gap-2 px-1">
-                        <button 
-                          onClick={() => {
-                            localStorage.clear();
-                            sessionStorage.clear();
-                            window.location.href = '/api/auth/signout';
-                          }}
-                          className="flex items-center justify-center gap-2 py-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-[0.2em] transition-all shadow-[0_0_20px_rgba(220,38,38,0.4)] border border-white/10"
-                        >
-                          <LogOut className="w-4 h-4" />
-                          Sign Out Permanently
-                        </button>
-                       
-                       <button 
-                         onClick={handleDeleteAccount}
-                         className="flex items-center justify-center gap-2 py-3 rounded-xl bg-gray-500/5 hover:bg-red-500/10 text-gray-500 hover:text-red-500 text-[10px] font-black uppercase tracking-widest transition-all mt-4 opacity-50 hover:opacity-100"
-                       >
-                         <Trash2 className="w-3.5 h-3.5" />
-                         Delete Account
-                       </button>
-                    </div>
-                </div>
-              )}
-            </div>
-          </motion.div>
+              <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter mb-4">
+                Confirm <span className="text-red-500">Purge</span>
+              </h2>
+              
+              <p className="text-gray-400 text-sm leading-relaxed mb-10 font-medium">
+                Are you absolutely sure? This will permanently delete your holographic identity, all reserved domains, and transmission history. <span className="text-red-500/80 italic font-black">This action is irreversible.</span>
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button
+                  disabled={isDeleting}
+                  onClick={confirmDeletion}
+                  className="flex-1 py-4 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-widest text-[10px] transition-all active:scale-[0.98] shadow-lg shadow-red-900/20 disabled:opacity-50"
+                >
+                  {isDeleting ? "Processing Purge..." : "YES, DELETE PERMANENTLY"}
+                </button>
+                <button
+                  disabled={isDeleting}
+                  onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 font-black uppercase tracking-widest text-[10px] transition-all disabled:opacity-50"
+                >
+                  NO, KEEP ACCOUNT
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
+
+      <div className="absolute bottom-0 left-4 right-4 h-[1px] bg-gradient-to-r from-transparent via-[var(--color-brand-pink)]/30 to-transparent"></div>
+    </header>
+  );
+});
       <AnimatePresence>
         {showDeleteModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
