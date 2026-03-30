@@ -324,9 +324,9 @@ export default function AdminSettings() {
                     <Shield className="w-5 h-5 text-red-500" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-white uppercase tracking-widest">Change Master Email</h3>
+                    <h3 className="text-sm font-black text-white uppercase tracking-widest">Update Master Credentials</h3>
                     <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest mt-0.5">
-                      Step {emailChangeStep === 'form' ? '1 — New Credentials' : '2 — Verify OTP'}
+                      Direct Dashboard Synchorization
                     </p>
                   </div>
                 </div>
@@ -353,13 +353,13 @@ export default function AdminSettings() {
                         className="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-red-500/50 outline-none text-white text-sm transition-all"
                       />
                     </div>
-                    <p className="text-[9px] text-gray-600 italic">An OTP will be sent to the current master email for verification.</p>
+                    <p className="text-[9px] text-gray-600 italic">This will directly update the root authentication for Quamify Mail.</p>
                     <button
                       onClick={sendEmailChangeOtp}
                       disabled={emailChangeSending}
                       className="w-full py-4 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-widest text-[10px] transition-all mt-4 disabled:opacity-50"
                     >
-                      {emailChangeSending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Send Verification OTP →'}
+                      {emailChangeSending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Confirm Direct Update →'}
                     </button>
                   </div>
                 ) : (

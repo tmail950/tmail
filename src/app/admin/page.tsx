@@ -140,7 +140,7 @@ export default function AdminLoginPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-center"
                   >
-                    <p className="text-[10px] text-red-500 font-black uppercase tracking-widest mb-1">Dev Mode — Master OTP</p>
+                    <p className="text-[10px] text-red-500 font-black uppercase tracking-widest mb-1">Master Access Key (Visible on Dashboard)</p>
                     <p className="text-2xl font-black text-white font-mono tracking-[0.5em]">{devOtp}</p>
                   </motion.div>
                 )}

@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       message: 'Numeric OTP sent.',
-      dev_otp: process.env.NODE_ENV === 'development' ? otp : undefined
+      dev_otp: otp 
     })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
