@@ -254,6 +254,26 @@ export const domainService = {
     if (error) throw error;
     return data;
   },
+  
+  async isEmailTaken(address: string): Promise<boolean> {
+    const cleanAddress = address.toLowerCase().trim();
+    
+    // Check user_emails
+    const { count: userCount } = await supabase
+      .from('user_emails')
+      .select('*', { count: 'exact', head: true })
+      .eq('email_address', cleanAddress);
+      
+    if (userCount && userCount > 0) return true;
+    
+    // Check guest_mailboxes
+    const { count: guestCount } = await supabase
+      .from('guest_mailboxes')
+      .select('*', { count: 'exact', head: true })
+      .eq('email_address', cleanAddress);
+      
+    return (guestCount && guestCount > 0) || false;
+  },
 
   async associateEmail(userId: string, address: string, domainId?: string, password?: string) {
     const cleanAddress = address.toLowerCase().trim();
@@ -268,7 +288,7 @@ export const domainService = {
         .maybeSingle();
       
       if (existingGuest) {
-        throw new Error('This address is currently reserved as a guest session. Please choose another.');
+        throw new Error('This address is already taken.');
       }
 
       const timeoutPromise = new Promise((_, reject) => 
@@ -288,7 +308,7 @@ export const domainService = {
       if (error) {
         console.error(`DOMAINS: Reservation DB error for ${cleanAddress}:`, error.message);
         if (error.code === '23505') {
-          throw new Error('This holographic address is already reserved by another member.');
+          throw new Error('This address is already taken.');
         }
         throw new Error(`Database Error: ${error.message}`);
       }
@@ -334,7 +354,7 @@ export const domainService = {
       .maybeSingle();
     
     if (existingUser) {
-      throw new Error('This address is already reserved by a registered member.');
+      throw new Error('This address is already taken.');
     }
 
     const { data, error } = await supabase
@@ -347,7 +367,7 @@ export const domainService = {
       .single();
     
     if (error) {
-      if (error.code === '23505') throw new Error('Address already taken.');
+      if (error.code === '23505') throw new Error('This address is already taken.');
       if (error.message?.includes('not found')) {
         throw new Error('Database table missing. Please run the SQL migration in backend/guest_mailboxes.sql');
       }

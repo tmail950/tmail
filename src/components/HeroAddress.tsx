@@ -183,7 +183,9 @@ const HeroAddress = ({
                 animate={{ opacity: 1, scale: 1 }}
                 className="text-red-400 text-[10px] font-bold uppercase tracking-widest bg-red-500/10 border border-red-500/20 px-6 py-3 rounded-2xl mx-auto max-w-md"
               >
-                {error.includes("unique") ? "Address already taken. Try another." : error}
+                {error.toLowerCase().includes("taken") || error.toLowerCase().includes("unique") 
+                  ? "This address is already taken. Try another." 
+                  : error}
               </motion.div>
             )}
 

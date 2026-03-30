@@ -134,7 +134,13 @@ export default function Home() {
         // Check if this email is already confirmed in localStorage
         const confirmedEmail = localStorage.getItem("quamify_last_confirmed_email");
         if (confirmedEmail === address) {
-          // Session restoration: silently mark as active without calling the API
+          // Point 8: Strict check even for session restoration
+          const isTaken = await domainService.isEmailTaken(address);
+          if (!isTaken) {
+            // If somehow it's not taken but was in our storage, we must re-associate
+            await domainService.guestAssociateEmail(address, mailboxPassword);
+          }
+          
           setUserEmails(prev => {
             if (prev.some(e => e.email_address === address)) return prev;
             return [{ email_address: address, guest: true }, ...prev];
@@ -158,19 +164,6 @@ export default function Home() {
         localStorage.setItem("quamify_guest_created_at", Date.now().toString());
       } catch (err: any) {
         const msg = err.message || "";
-        // If the email is already registered, treat it as a session restore
-        if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('duplicate') || msg.toLowerCase().includes('unique')) {
-          setUserEmails(prev => {
-            if (prev.some(e => e.email_address === address)) return prev;
-            return [{ email_address: address, guest: true }, ...prev];
-          });
-          setShowSuccess(true);
-          setTimeout(() => setShowSuccess(false), 2000);
-          setIsSavingEmail(false);
-          // Confirm this email in localStorage for future refreshes
-          localStorage.setItem("quamify_last_confirmed_email", address);
-          return;
-        }
         setIsSavingEmail(false);
         setSaveError(msg || "Activation failure.");
       }
@@ -203,18 +196,6 @@ export default function Home() {
       clearTimeout(spinnerTimeout);
       setIsSavingEmail(false);
       const msg = err.message || "";
-      
-      // SILENT RESTORE: If already taken, just add to list if not there and show success
-      if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('duplicate') || msg.toLowerCase().includes('unique')) {
-        setUserEmails(prev => {
-          if (prev.some(e => e.email_address === address)) return prev;
-          return [{ email_address: address, user_id: user.id }, ...prev];
-        });
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 2000);
-        return;
-      }
-
       setSaveError(msg || "Activation failure.");
       console.error("Save email error:", err);
     }
