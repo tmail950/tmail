@@ -77,10 +77,11 @@ export async function updateSession(request: NextRequest) {
   const isHomePath = request.nextUrl.pathname === '/'
   const isIngestPath = request.nextUrl.pathname.startsWith('/api/ingest')
   const isPublicApiPath = request.nextUrl.pathname.startsWith('/api/domains')
-  const isPublicContent = request.nextUrl.pathname === '/terms' || request.nextUrl.pathname === '/safety' || request.nextUrl.pathname === '/icon.svg'
+  const isPublicContent = ['/terms', '/privacy', '/safety', '/icon.svg'].includes(request.nextUrl.pathname)
+  const isAdminPath = request.nextUrl.pathname.startsWith('/admin')
 
-  // Skip getUser for truly public APIs and static content to save a network roundtrip
-  if (isIngestPath || isPublicApiPath || isPublicContent) {
+  // Skip getUser for truly public APIs, static content, and the master admin portal
+  if (isIngestPath || isPublicApiPath || isPublicContent || isAdminPath) {
     return response
   }
 

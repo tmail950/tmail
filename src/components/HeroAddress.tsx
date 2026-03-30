@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Wand2, Copy, Check, Globe, Zap, Loader2 } from 'lucide-react';
+import { Wand2, Copy, Check, Globe, Zap, Loader2, Eye, EyeOff } from 'lucide-react';
 import { motion } from "framer-motion";
 import { type DomainRecord } from "@/services/domainService";
 
@@ -12,8 +12,8 @@ interface HeroAddressProps {
   selectedDomain: string;
   verifiedDomains: DomainRecord[];
   onDomainChange: (val: string) => void;
-  onSimulate?: () => void;
   onSaveAddress?: () => void;
+  onDeleteAddress?: (addr: string) => void;
   onSwitchAddress?: (addr: string) => void;
   savedAddresses?: string[];
   isSaving?: boolean;
@@ -22,6 +22,10 @@ interface HeroAddressProps {
   isSaved?: boolean;
   showSuccess?: boolean;
   error?: string | null;
+  password?: string;
+  onPasswordChange?: (val: string) => void;
+  sessionExpired?: boolean;
+  onSimulate?: () => void;
 }
 
 const HeroAddress = ({ 
@@ -33,8 +37,8 @@ const HeroAddress = ({
   selectedDomain,
   verifiedDomains,
   onDomainChange,
-  onSimulate,
   onSaveAddress,
+  onDeleteAddress,
   onSwitchAddress,
   savedAddresses = [],
   isSaving = false,
@@ -42,13 +46,17 @@ const HeroAddress = ({
   isDomainLoading = false,
   isSaved = false,
   showSuccess = false,
-  error = null
+  error = null,
+  password = "",
+  onPasswordChange,
+  sessionExpired = false,
+  onSimulate
 }: HeroAddressProps) => {
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    console.log("HERO-ADDRESS: State Check -> Domains:", verifiedDomains.length, "Selected:", selectedDomain);
-  }, [verifiedDomains, selectedDomain]);
+  const [prefixCopied, setPrefixCopied] = useState(false);
+  const [passCopied, setPassCopied] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [deletingAddr, setDeletingAddr] = useState<string | null>(null);
 
   const handleCopy = () => {
     if (!emailAddress) return;
@@ -72,7 +80,9 @@ const HeroAddress = ({
           
           <div className="flex items-center gap-2 mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-[--color-brand-pink] animate-ping"></span>
-            <h2 className="text-xs font-black text-gray-400 tracking-[0.3em] uppercase relative z-10">Active Holographic Inbox</h2>
+            <h2 className="text-xs font-black text-gray-400 tracking-[0.3em] uppercase relative z-10">
+              Active Holographic Inbox
+            </h2>
           </div>
           
           <div className="flex flex-col gap-8 w-full relative z-10">
@@ -82,30 +92,89 @@ const HeroAddress = ({
                 type="text"
                 value={prefix}
                 onChange={(e) => onPrefixChange(e.target.value)}
-                className="w-full sm:flex-1 bg-transparent text-2xl sm:text-3xl font-black text-white outline-none min-w-0 text-center sm:text-left"
+                className="w-full sm:flex-1 bg-transparent text-2xl sm:text-3xl font-black text-white outline-none min-w-0 text-center sm:text-left pr-10"
                 placeholder="prefix"
               />
-              <span className="text-2xl text-gray-600 font-light my-1 sm:my-0">@</span>
-              <select 
-                value={selectedDomain}
-                onChange={(e) => onDomainChange(e.target.value)}
-                className="w-full sm:w-auto bg-white/5 hover:bg-white/10 text-base sm:text-lg font-bold text-gray-300 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl outline-none cursor-pointer appearance-none transition-all text-center sm:text-left min-w-[140px]"
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(emailAddress);
+                  setPrefixCopied(true);
+                  setTimeout(() => setPrefixCopied(false), 2000);
+                }}
+                className={`flex items-center gap-1 p-2 rounded-lg transition-all ${prefixCopied ? 'text-green-400 bg-green-400/10' : 'text-gray-500 hover:text-white'}`}
+                title="Copy Full Address"
               >
-                {verifiedDomains.length > 0 ? (
-                  <>
-                    <option value={selectedDomain} className="bg-[#050505]">{selectedDomain || "Select Domain"}</option>
-                    {verifiedDomains
-                      .filter(d => d.domain_name !== selectedDomain)
-                      .map(d => (
-                        <option key={d.id} value={d.domain_name} className="bg-[#050505]">{d.domain_name}</option>
-                      ))}
-                  </>
-                ) : (
-                  <option value="" className="bg-[#050505]">
-                    {isDomainLoading ? "Calibrating Domains..." : "No Approved Domains"}
-                  </option>
+                {prefixCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {prefixCopied && <span className="text-[8px] font-black uppercase">Copied</span>}
+              </button>
+              <span className="text-2xl text-gray-600 font-light my-1 sm:my-0">@</span>
+              <div className="relative w-full sm:w-auto overflow-hidden group/dom">
+                <select 
+                  value={selectedDomain}
+                  onChange={(e) => onDomainChange(e.target.value)}
+                  disabled={!isLoggedIn}
+                  className={`w-full sm:w-auto bg-white/5 hover:bg-white/10 text-base sm:text-lg font-bold text-gray-300 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl outline-none cursor-pointer appearance-none transition-all text-center sm:text-left min-w-[140px] ${!isLoggedIn ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {verifiedDomains.length > 0 ? (
+                    <>
+                      <option value={selectedDomain} className="bg-[#050505]">{selectedDomain || "Select Domain"}</option>
+                      {isLoggedIn && verifiedDomains
+                        .filter(d => d.domain_name !== selectedDomain)
+                        .map(d => (
+                          <option key={d.id} value={d.domain_name} className="bg-[#050505]">{d.domain_name}</option>
+                        ))}
+                    </>
+                  ) : (
+                    <option value="" className="bg-[#050505]">
+                      {isDomainLoading ? "Calibrating Domains..." : "No Approved Domains"}
+                    </option>
+                  )}
+                </select>
+                {!isLoggedIn && (
+                  <button 
+                    type="button"
+                    onClick={() => onPrefixChange?.("_LOCK_MSG_")}
+                    className="absolute inset-0 cursor-pointer z-10 w-full h-full bg-transparent border-none appearance-none" 
+                    title="Create account for more multiple domains"
+                  ></button>
                 )}
-              </select>
+              </div>
+            </div>
+
+            {/* Password Input for All Users (Consistency) */}
+            <div className="flex flex-col items-center gap-2 w-full max-w-sm mx-auto mb-4">
+              <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Mailbox Password</label>
+              <div className="relative w-full">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => onPasswordChange?.(e.target.value)}
+                  placeholder="Set secret key"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center text-white placeholder:text-gray-600 outline-none focus:border-[var(--color-brand-pink)]/50 transition-all font-mono"
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(password);
+                      setPassCopied(true);
+                      setTimeout(() => setPassCopied(false), 2000);
+                    }}
+                    className={`p-1 transition-colors ${passCopied ? 'text-green-400' : 'text-gray-500 hover:text-white'}`}
+                    title="Copy Password"
+                  >
+                    {passCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="p-1 text-gray-500 hover:text-white transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
             </div>
 
             {error && (
@@ -114,7 +183,7 @@ const HeroAddress = ({
                 animate={{ opacity: 1, scale: 1 }}
                 className="text-red-400 text-[10px] font-bold uppercase tracking-widest bg-red-500/10 border border-red-500/20 px-6 py-3 rounded-2xl mx-auto max-w-md"
               >
-                {error}
+                {error.includes("unique") ? "Address already taken. Try another." : error}
               </motion.div>
             )}
 
@@ -127,8 +196,8 @@ const HeroAddress = ({
                     : "bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/5"
                 }`}
               >
-                < Wand2 className="w-4 h-4" />
-                Auto-Gen
+                <Wand2 className="w-4 h-4" />
+                Free Generate
               </button>
               
               <button
@@ -144,63 +213,89 @@ const HeroAddress = ({
                 {copied ? "Copied" : "Copy Address"}
               </button>
 
-              {onSimulate && (
-                <button
-                  onClick={onSimulate}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-4 sm:py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 border border-blue-500/20 transition-all active:scale-95 group/sim"
-                >
-                  <Zap className="w-4 h-4 group-hover/sim:scale-125 transition-transform" />
-                  Simulate
-                </button>
+              {(isSaved || showSuccess) && !sessionExpired && (
+                <div className="flex items-center gap-3 px-8 py-4 sm:py-3.5 rounded-2xl bg-green-500/10 border border-green-500/20 text-green-400 font-bold tracking-widest uppercase text-[10px]">
+                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                  Active
+                  {onSimulate && (
+                    <button
+                      onClick={onSimulate}
+                      className="ml-2 pl-2 border-l border-green-500/30 text-green-300 hover:text-white transition-colors"
+                      title="Send Test Email"
+                    >
+                      <Zap className="w-3 h-3" />
+                      Test
+                    </button>
+                  )}
+                </div>
               )}
 
-              {isLoggedIn && !isSaved && (
+              {!isSaved && !showSuccess && !sessionExpired && (
                 <button
                   onClick={onSaveAddress}
-                  disabled={isSaving || showSuccess}
+                  disabled={isSaving}
                   className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-4 sm:py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 disabled:opacity-80 ${
-                    showSuccess
-                    ? "bg-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.4)]"
-                    : !isSaved 
-                    ? "bg-[var(--color-brand-pink)] text-white shadow-[0_0_20px_var(--color-brand-pink)]/40 animate-pulse" 
-                    : "bg-green-500/10 text-green-400 border border-green-500/20"
+                    "bg-[var(--color-brand-pink)] text-white shadow-[0_0_20px_var(--color-brand-pink)]/40 animate-pulse"
                   }`}
                 >
                   {isSaving ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : showSuccess ? (
-                    <Check className="w-4 h-4" />
                   ) : (
                     <Zap className="w-4 h-4" />
                   )}
-                  {showSuccess ? "Reserved!" : isSaving ? "Reserving..." : "Activate Inbox"}
+                  {isSaving ? "Reserving..." : "Activate Inbox"}
+                </button>
+              )}
+
+              {!isLoggedIn && sessionExpired && (
+                <button
+                  onClick={() => window.location.href = '/login'}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 sm:py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest bg-amber-500 text-white shadow-[0_0_20px_rgba(245,158,11,0.4)] animate-pulse"
+                >
+                  <Loader2 className="w-4 h-4" />
+                  Session Expired - Login
                 </button>
               )}
             </div>
 
-            {error && (
-              <div className="mt-4 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-[10px] uppercase tracking-wider text-center animate-bounce">
-                {error.includes("unique") ? "Address already taken. Try another." : error}
-              </div>
-            )}
-
             {/* Saved Addresses Quick Switcher */}
-            {isLoggedIn && savedAddresses.length > 0 && (
+            {savedAddresses.length > 0 && (
               <div className="flex flex-col items-center gap-4 mt-4 py-6 border-t border-white/5">
                 <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Holographic Reserves ({savedAddresses.length})</span>
                 <div className="flex flex-wrap justify-center gap-2 max-w-2xl px-4">
                   {savedAddresses.map((addr) => (
-                    <button
-                      key={addr}
-                      onClick={() => onSwitchAddress?.(addr)}
-                      className={`px-4 py-2 rounded-xl text-[10px] font-bold transition-all border ${
-                        addr === emailAddress
-                          ? "bg-[var(--color-brand-pink)]/20 text-[var(--color-brand-pink)] border-[var(--color-brand-pink)]/40 shadow-[0_0_15px_rgba(255,18,177,0.2)]"
-                          : "bg-white/5 text-gray-400 border-white/5 hover:border-white/20 hover:text-white"
-                      }`}
-                    >
-                      {addr}
-                    </button>
+                    <div key={addr} className="flex items-center gap-1 group/addr">
+                      <button
+                        onClick={() => onSwitchAddress?.(addr)}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-bold transition-all border ${
+                          addr === emailAddress
+                            ? "bg-[var(--color-brand-pink)]/20 text-[var(--color-brand-pink)] border-[var(--color-brand-pink)]/40 shadow-[0_0_15px_rgba(255,18,177,0.2)]"
+                            : "bg-white/5 text-gray-400 border-white/5 hover:border-white/20 hover:text-white"
+                        }`}
+                      >
+                        {addr}
+                      </button>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (deletingAddr === addr) return;
+                          setDeletingAddr(addr);
+                          try {
+                            await onDeleteAddress?.(addr);
+                          } finally {
+                            setDeletingAddr(null);
+                          }
+                        }}
+                        className={`p-2 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-all opacity-0 group-hover/addr:opacity-100 ${deletingAddr === addr ? 'opacity-100' : ''}`}
+                        title="Delete Address"
+                      >
+                        {deletingAddr === addr ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                        )}
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>

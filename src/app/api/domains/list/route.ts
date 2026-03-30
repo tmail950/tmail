@@ -1,38 +1,48 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-    process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-  );
-
-  const supabase = await createServerClient(); // For session
-  const { data: { session } } = await supabase.auth.getSession();
-
+  const supabaseAdmin = createAdminClient();
+  const supabase = await createServerClient();
+  
   try {
+    // 1. Get current session with a timeout to prevent 60s hangs
+    const sessionPromise = supabase.auth.getSession();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Auth Session Timeout')), 5000)
+    );
+    
+    const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]) as any;
+
+    // 2. Build the domain query
     let query = supabaseAdmin
       .from('user_domains')
       .select('id, domain_name, is_verified, created_at, user_id')
       .eq('is_verified', true);
 
-    // If session exists, include user's own verified domains OR approved ones
-    if (session) {
+    if (session?.user?.id) {
+      // Use efficient OR logic: Approved OR owned by current user
       query = query.or(`admin_approval.eq.approved,user_id.eq.${session.user.id}`);
     } else {
+      // Public view only shows approved domains
       query = query.eq('admin_approval', 'approved');
     }
 
-    const { data, error } = await query.order('created_at', { ascending: false });
+    // 3. Execute query with order
+    const { data, error } = await query
+      .order('created_at', { ascending: false })
+      .limit(50); // Sanity limit for performance
 
     if (error) throw error;
     
     return NextResponse.json(data || []);
   } catch (error: any) {
-    console.error('API-DOMAINS-LIST Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('API-DOMAINS-LIST Critical Error:', error.message);
+    
+    // Fallback: If DB or Auth hangs, return a minimal set or empty array to keep UI alive
+    return NextResponse.json([], { status: 200 }); 
   }
 }

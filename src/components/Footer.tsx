@@ -17,6 +17,7 @@ const Footer = memo(() => {
     <footer className="w-full py-8 mt-auto border-t border-white/5 bg-black/20 backdrop-blur-sm px-4">
       <div className="max-w-7xl mx-auto flex flex-col items-center gap-4">
         <div className="flex items-center gap-8 text-gray-500 text-[10px] uppercase font-bold tracking-[0.2em] mb-2">
+            <Link href="/privacy" className="hover:text-[var(--color-brand-pink)] transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-[var(--color-brand-pink)] transition-colors">Terms of Service</Link>
             <Link href="/safety" className="hover:text-[#ff12b1] transition-colors">Safety Clause</Link>
             <Link href="/admin" className="hover:text-[var(--color-brand-pink)] transition-colors">Portal Access</Link>

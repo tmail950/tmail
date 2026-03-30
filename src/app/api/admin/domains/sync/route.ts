@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { cloudflare } from '@/lib/cloudflare';
 import { domainService } from '@/services/domainService';
 
@@ -14,7 +15,11 @@ export async function POST(request: Request) {
     }
 
     // 1. Verify Admin Status
-    const settings = await domainService.getSettings();
+    const adminClient = createAdminClient();
+    const { data: settingsData } = await adminClient.from('site_settings').select('*');
+    const settings: Record<string, string> = {};
+    settingsData?.forEach((s: any) => settings[s.key] = s.value);
+
     const masterAdmin = settings.admin_email || 'info369skills@gmail.com';
     
     // Check master admin or developer backup
@@ -45,17 +50,13 @@ export async function POST(request: Request) {
     // 4. Recovery: If zone ID is missing, try to find or create it
     let zoneId = domain.cloudflare_zone_id;
     if (!zoneId) {
-        console.log(`CLOUDFLARE-SYNC: Zone ID missing for ${domain.domain_name}. Searching...`);
         let zone = await cloudflare.findZoneByName(domain.domain_name);
-        
         if (!zone) {
-            console.log(`CLOUDFLARE-SYNC: Zone not found for ${domain.domain_name}. Creating...`);
             zone = await cloudflare.createZone(domain.domain_name);
         }
 
         if (zone) {
             zoneId = zone.id;
-            // Update database with the recovered/created ID
             await supabase
                 .from('user_domains')
                 .update({ cloudflare_zone_id: zoneId })
@@ -65,17 +66,10 @@ export async function POST(request: Request) {
         }
     }
 
-    console.log(`CLOUDFLARE-SYNC: Syncing ${domain.domain_name} (${zoneId})...`);
-
-    // 5. Re-run Cloudflare Setup (DNS First, then Routing)
     const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'quamify-email-worker';
-    
     try {
-      console.log(`CLOUDFLARE-SYNC: Provisioning DNS records for ${domain.domain_name}...`);
       await cloudflare.setupEmailDNS(zoneId);
       await cloudflare.setupGeneralDNS(zoneId, domain.domain_name);
-      
-      console.log(`CLOUDFLARE-SYNC: Configuring Email Routing for ${domain.domain_name}...`);
       await cloudflare.setupEmailRouting(zoneId, workerName);
       
       // Update DB status to active

@@ -10,26 +10,32 @@ interface SidebarProps {
   onSelectEmail: (id: string) => void;
 }
 
-// Helper to format "time ago" safely avoiding NaN
-function getTimeAgo(dateStr: string | undefined): string {
+// Pakistan Standard Time formatter (UTC+5)
+function formatPSTime(dateStr: string | undefined): string {
   if (!dateStr) return 'Just now';
-  
   const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return 'Just now'; // Fallback if still invalid
-  
-  const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-  
-  if (diffInSeconds < 60) return 'Just now';
-  
-  const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-  
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `${diffInHours}h ago`;
-  
-  const diffInDays = Math.floor(diffInHours / 24);
-  return `${diffInDays}d ago`;
+  if (isNaN(date.getTime())) return 'Just now';
+  return date.toLocaleString('en-PK', {
+    timeZone: 'Asia/Karachi',
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+/** Returns a very short preview, skipping raw email header lines. */
+function getBodyPreview(text: string | null | undefined): string {
+  if (!text) return 'Empty transmission content.';
+  const lines = text.split('\n').filter(line => {
+    const stripped = line.trim();
+    if (!stripped) return false;
+    // Skip known header patterns
+    return !/^(Received|ARC-|DKIM-|Authentication|Return-Path|X-|Content-Type|Content-Transfer|MIME|Message-ID|Delivered-To|From:|To:|Subject:|Date:)\s/i.test(stripped);
+  });
+  return lines.join(' ').substring(0, 70) || 'Transmission received.';
 }
 
 export default memo(function Sidebar({ emails, selectedEmailId, onSelectEmail }: SidebarProps) {
@@ -81,8 +87,8 @@ const SidebarItem = memo(({ email, isSelected, onSelect }: { email: Email, isSel
         <span className={`font-black tracking-tight truncate max-w-[70%] ${isSelected ? 'text-white text-lg' : 'text-gray-300'}`}>
           {email.sender?.split('<')[0].trim() || "Unknown"}
         </span>
-        <span className="text-[10px] text-gray-500 font-mono tracking-tighter uppercase whitespace-nowrap mt-1">
-          {getTimeAgo(email.received_at)}
+        <span className="text-[9px] text-gray-500 font-mono tracking-tighter whitespace-nowrap mt-1 text-right leading-tight">
+          {formatPSTime(email.received_at)}
         </span>
       </div>
       
@@ -91,7 +97,7 @@ const SidebarItem = memo(({ email, isSelected, onSelect }: { email: Email, isSel
       </span>
       
       <p className="text-xs text-gray-600 line-clamp-1 leading-relaxed">
-        {email.body_text?.substring(0, 60) || "Empty transmission content."}
+        {getBodyPreview(email.body_text)}
       </p>
     </button>
   );

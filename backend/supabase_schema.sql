@@ -156,8 +156,18 @@ CREATE POLICY "Users can view emails for their domains"
             AND public.emails.recipient_address LIKE ('%@' || user_domains.domain_name)
         )
         OR 
-        public.emails.recipient_address LIKE '%@quamify-mail.com' -- Allow platform default viewing for everyone
+        public.emails.recipient_address LIKE '%@quamify-mail.com'
+        OR
+        EXISTS (
+            SELECT 1 FROM public.guest_mailboxes
+            WHERE public.guest_mailboxes.email_address = public.emails.recipient_address
+        )
     );
+    
+DROP POLICY IF EXISTS "Public can insert emails" ON public.emails;
+CREATE POLICY "Public can insert emails" 
+    ON public.emails FOR INSERT 
+    WITH CHECK (true);
 
 -- 4. Rate Limiting Table
 CREATE TABLE IF NOT EXISTS rate_limits (

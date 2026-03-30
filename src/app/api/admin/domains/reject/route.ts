@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { domainService } from '@/services/domainService';
 
 export async function POST(request: Request) {
@@ -13,7 +14,11 @@ export async function POST(request: Request) {
     }
 
     // 1. Verify Admin Status
-    const settings = await domainService.getSettings();
+    const adminClient = createAdminClient();
+    const { data: settingsData } = await adminClient.from('site_settings').select('*');
+    const settings: Record<string, string> = {};
+    settingsData?.forEach((s: any) => settings[s.key] = s.value);
+
     const masterAdmin = settings.admin_email || 'info369skills@gmail.com';
     
     if (session.user.email !== masterAdmin && 

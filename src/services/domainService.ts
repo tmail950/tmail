@@ -37,7 +37,6 @@ export const domainService = {
       data?.forEach((s: any) => settings[s.key] = s.value)
       return settings
     } catch (e) {
-      console.warn("Settings fetch failed (table might be missing):", e)
       return {}
     }
   },
@@ -96,15 +95,13 @@ export const domainService = {
     }
   },
 
-  async listDomains() {
+  async listDomains(): Promise<DomainRecord[]> {
     try {
-      const { data, error } = await supabase
-        .from('user_domains')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      return (data as DomainRecord[]) || []
+      const response = await fetch('/api/admin/domains/list', { cache: 'no-store' })
+      if (!response.ok) {
+        throw new Error('Failed to fetch admin domains')
+      }
+      return await response.json()
     } catch (e) {
       return []
     }
@@ -258,7 +255,7 @@ export const domainService = {
     return data;
   },
 
-  async associateEmail(userId: string, address: string, domainId?: string) {
+  async associateEmail(userId: string, address: string, domainId?: string, password?: string) {
     const cleanAddress = address.toLowerCase().trim();
     console.log(`DOMAINS: Initiating reservation for ${cleanAddress} (User: ${userId})`);
     
@@ -285,6 +282,22 @@ export const domainService = {
         throw new Error(`Database Error: ${error.message}`);
       }
       
+      // If a password was provided, also ensure it exists in the guest_mailboxes 
+      // so it can be accessed after sign-out (Unified Persistence)
+      if (password) {
+        try {
+          await supabase
+            .from('guest_mailboxes')
+            .upsert({ 
+              email_address: cleanAddress, 
+              password_hash: password 
+            }, { onConflict: 'email_address' });
+          console.log(`DOMAINS: Synchronized credentials for ${cleanAddress}`);
+        } catch (syncErr) {
+          console.error("DOMAINS: Failed to sync guest credentials:", syncErr);
+        }
+      }
+      
       const record = Array.isArray(data) ? data[0] : data;
       if (!record) {
         console.error(`DOMAINS: No data returned for ${cleanAddress}`);
@@ -297,6 +310,61 @@ export const domainService = {
       console.error(`DOMAINS: Critical failure during reservation of ${cleanAddress}:`, err.message);
       throw err;
     }
+  },
+
+  async guestAssociateEmail(address: string, password: string) {
+    const cleanAddress = address.toLowerCase().trim();
+    const { data, error } = await supabase
+      .from('guest_mailboxes')
+      .insert({ 
+        email_address: cleanAddress, 
+        password_hash: password // In production, hash this!
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      if (error.code === '23505') throw new Error('Address already taken.');
+      if (error.message?.includes('not found')) {
+        throw new Error('Database table missing. Please run the SQL migration in backend/guest_mailboxes.sql');
+      }
+      throw error;
+    }
+    return data;
+  },
+
+  async verifyGuestMailbox(address: string, password: string) {
+    const cleanAddress = address.toLowerCase().trim();
+    const { data, error } = await supabase
+      .from('guest_mailboxes')
+      .select('*')
+      .eq('email_address', cleanAddress)
+      .eq('password_hash', password)
+      .single();
+    
+    if (error || !data) {
+      throw new Error('Invalid address or password.');
+    }
+    return data;
+  },
+
+  async deleteUserEmail(userId: string, address: string) {
+    const { error } = await supabase
+      .from('user_emails')
+      .delete()
+      .eq('user_id', userId)
+      .eq('email_address', address.toLowerCase().trim());
+    
+    if (error) throw error;
+  },
+
+  async deleteGuestEmail(address: string) {
+    const { error } = await supabase
+      .from('guest_mailboxes')
+      .delete()
+      .eq('email_address', address.toLowerCase().trim());
+    
+    if (error) throw error;
   },
 
   async deletePlatformDomain(id: string) {

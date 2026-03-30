@@ -17,6 +17,7 @@ export default function UserDomains() {
   const [verifying, setVerifying] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copiedType, setCopiedType] = useState<string | null>(null)
+  const [masterAdmin, setMasterAdmin] = useState<string | null>(null)
 
   const copyToClipboard = (text: string, type: string) => {
     navigator.clipboard.writeText(text)
@@ -38,21 +39,45 @@ export default function UserDomains() {
   }, [user])
 
   useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      router.push("/login")
-      return
-    }
-    
-    // Strict Admin Protection: Only master admin can access domain management
-    const authorizedAdmins = ['info369skills@gmail.com', 'danubaba369@gmail.com'];
-    if (!authorizedAdmins.includes(user.email || '')) {
-      router.push("/")
-      return
-    }
+    const init = async () => {
+      try {
+        setLoading(true)
+        setError(null)
 
-    fetchUserDomains()
-  }, [authLoading, user, router, fetchUserDomains])
+        // 1. Get Master Admin (Dynamic)
+        const settings = await domainService.getSettings()
+        const adminEmail = settings.admin_email || 'info369skills@gmail.com'
+        setMasterAdmin(adminEmail)
+
+        // 2. Auth Check (Wait for authLoading to resolve)
+        if (authLoading) return
+
+        if (!user) {
+          router.push("/login")
+          return
+        }
+        
+        const isAuthorized = user.email === adminEmail || 
+                           user.email === 'info369skills@gmail.com' || 
+                           user.email === 'danubaba369@gmail.com'
+
+        if (!isAuthorized) {
+          router.push("/")
+          return
+        }
+
+        // 3. Fetch Data (Secure Admin API)
+        const domains = await domainService.listDomains()
+        setAllDomains(domains || [])
+      } catch (err: any) {
+        console.error("UserDomains Init Error:", err)
+        setError(err.message || "Failed to load domains.")
+      } finally {
+        setLoading(false)
+      }
+    }
+    init()
+  }, [authLoading, user, router])
 
   const handleAddDomain = async () => {
     if (!newDomain) return
@@ -332,7 +357,7 @@ export default function UserDomains() {
                     </div>
                   </div>
                     <div className="flex items-center gap-2 relative z-10">
-                      {(user?.email === 'info369skills@gmail.com' && domain.admin_approval !== 'approved') && (
+                      {(user?.email === masterAdmin || user?.email === 'info369skills@gmail.com') && domain.admin_approval !== 'approved' && (
                         <button 
                           onClick={async () => {
                             await domainService.approveDomain(domain.id);

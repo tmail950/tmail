@@ -10,12 +10,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { sender, subject, recipient, body_text, body_html, api_key } = body;
-    console.log('--- INCOMING EMAIL ---');
-    console.log('Sender:', sender);
-    console.log('Recipient:', recipient);
-    console.log('Subject:', subject);
-    console.log('API Key:', api_key ? 'Present' : 'Missing');
-    console.log('----------------------');
 
     // Secure the endpoint with an API Key
     if (api_key !== process.env.INGEST_API_KEY) {
