@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe, Home, LogOut, Shield, Menu, X, ShieldCheck, FileText, Trash2, AlertTriangle, Users, PlusCircle, LogIn } from "lucide-react";
+import { Globe, Home, LogOut, Shield, Menu, X, Trash2, AlertTriangle, Users, PlusCircle, LogIn, Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useState, useEffect, Suspense, useMemo, memo, useCallback } from "react";
@@ -8,53 +8,139 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { createClient } from '@/lib/supabase/client'
 
+// ---------- Profile Store Helpers ----------
+type StoredProfile = { email: string; password?: string; type: 'account' | 'guest'; guestData?: any };
+
+function getProfiles(): StoredProfile[] {
+  try { return JSON.parse(localStorage.getItem('TMAIL.PK_profiles') || '[]'); } catch { return []; }
+}
+function saveProfile(p: StoredProfile) {
+  const list = getProfiles();
+  const idx = list.findIndex(x => x.email === p.email);
+  if (idx >= 0) {
+    // Only overwrite password if a new one is provided. Keep existing password otherwise.
+    list[idx] = { ...list[idx], ...p, password: p.password || list[idx].password };
+  } else {
+    list.unshift(p);
+  }
+  localStorage.setItem('TMAIL.PK_profiles', JSON.stringify(list.slice(0, 9)));
+}
+function preserveProfileData() {
+  return {
+    profiles: localStorage.getItem('TMAIL.PK_profiles'),
+    savedAccounts: localStorage.getItem('TMAIL.PK_saved_accounts'),
+    guestHistory: localStorage.getItem('TMAIL.PK_guest_history'),
+  };
+}
+function restoreProfileData(data: ReturnType<typeof preserveProfileData>) {
+  if (data.profiles) localStorage.setItem('TMAIL.PK_profiles', data.profiles);
+  if (data.savedAccounts) localStorage.setItem('TMAIL.PK_saved_accounts', data.savedAccounts);
+  if (data.guestHistory) localStorage.setItem('TMAIL.PK_guest_history', data.guestHistory);
+}
+// ------------------------------------------
+
 const HeaderContent = memo(() => {
   const { user, signOut, isAdmin } = useAuth();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [savedAccounts, setSavedAccounts] = useState<string[]>([]);
+  const [profiles, setProfiles] = useState<StoredProfile[]>([]);
+  const [guestHistory, setGuestHistory] = useState<any[]>([]);
   const [isSwitchOpen, setIsSwitchOpen] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
+  const [switchTarget, setSwitchTarget] = useState<string | null>(null);
   const supabase = createClient();
+
+  const refreshProfiles = useCallback(() => {
+    setProfiles(getProfiles());
+    const history = JSON.parse(localStorage.getItem('TMAIL.PK_guest_history') || '[]');
+    setGuestHistory(history);
+  }, []);
 
   useEffect(() => {
     setMounted(true);
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
-
-    // Load saved accounts
-    const accounts = JSON.parse(localStorage.getItem('TMAIL.PK_saved_accounts') || '[]');
-    setSavedAccounts(accounts);
-
+    refreshProfiles();
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [refreshProfiles]);
 
-  const saveCurrentAccount = useCallback(() => {
+  // Save current Supabase account into profile store
+  const saveCurrentAccount = useCallback((password?: string) => {
     if (!user?.email) return;
+    // Update profiles list
+    saveProfile({ email: user.email, password, type: 'account' });
+    // Keep legacy saved_accounts list in sync
     const accounts = JSON.parse(localStorage.getItem('TMAIL.PK_saved_accounts') || '[]');
     if (!accounts.includes(user.email)) {
-      const newAccounts = [user.email, ...accounts].slice(0, 5); // Keep last 5
-      localStorage.setItem('TMAIL.PK_saved_accounts', JSON.stringify(newAccounts));
-      setSavedAccounts(newAccounts);
+      localStorage.setItem('TMAIL.PK_saved_accounts', JSON.stringify([user.email, ...accounts].slice(0, 9)));
     }
-  }, [user]);
+    refreshProfiles();
+  }, [user, refreshProfiles]);
 
   useEffect(() => {
     if (user) saveCurrentAccount();
   }, [user, saveCurrentAccount]);
 
-  const handleSwitchAccount = async (targetEmail: string) => {
-    if (targetEmail === user?.email) return;
+  const handleSwitchAccount = async (target: any) => {
+    const targetEmail = typeof target === 'string' ? target : target.email_address;
+    const isGuest = typeof target !== 'string';
+
+    if (targetEmail === user?.email && !isGuest) return;
     setIsSwitchOpen(false);
-    await signOut();
-    // Redirect to login with pre-filled email
+    setIsMenuOpen(false);
+
+    if (isGuest) {
+      // ── Guest profile switch: just swap active localStorage keys ──
+      setIsSwitching(true);
+      setSwitchTarget(targetEmail);
+      const data = preserveProfileData();
+      localStorage.setItem("TMAIL.PK_active_email", target.email_address);
+      if (target.password) localStorage.setItem("TMAIL.PK_guest_password", target.password);
+      localStorage.setItem("TMAIL.PK_last_confirmed_email", target.email_address);
+      restoreProfileData(data);
+      window.location.href = "/?switched=true";
+      return;
+    }
+
+    // ── Supabase account switch ──
+    setIsSwitching(true);
+    setSwitchTarget(targetEmail);
+
+    // Check if we have stored credentials for this profile
+    const storedProfiles = getProfiles();
+    const targetProfile = storedProfiles.find(p => p.email === targetEmail);
+
+    if (targetProfile?.password) {
+      try {
+        const data = preserveProfileData();
+        // Client-side sign out only (faster, no server round-trip)
+        await supabase.auth.signOut({ scope: 'local' });
+        restoreProfileData(data);
+        // Auto sign-in to target account
+        const { error } = await supabase.auth.signInWithPassword({
+          email: targetEmail,
+          password: targetProfile.password,
+        });
+        if (!error) {
+          window.location.href = '/?switched=true';
+          return;
+        }
+      } catch (e) {
+        // fall through to login redirect
+      }
+    }
+
+    // Fallback: no credentials → preserve profiles & redirect to prefilled login
+    const data = preserveProfileData();
+    await supabase.auth.signOut({ scope: 'local' });
+    restoreProfileData(data);
     window.location.href = `/login?email=${encodeURIComponent(targetEmail)}`;
   };
 
@@ -84,8 +170,6 @@ const HeaderContent = memo(() => {
 
   const navLinks = useMemo(() => [
     { href: "/", label: "Home", icon: Home, active: pathname === "/" },
-    { href: "/safety", label: "Safety", icon: ShieldCheck, active: pathname === "/safety" },
-    { href: "/terms", label: "Terms", icon: FileText, active: pathname === "/terms" },
     ...(isAdmin ? [
       { href: "/domains", label: "Domains", icon: Globe, active: pathname === "/domains", isAdmin: true },
       { href: "/admin/settings", label: "Settings", icon: Shield, active: pathname === '/admin/settings', isAdmin: true }
@@ -94,7 +178,7 @@ const HeaderContent = memo(() => {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 p-4 transition-all duration-300">
-      <div className={`max-w-7xl mx-auto glass-panel rounded-2xl p-4 flex items-center justify-between border-[rgba(255,255,255,0.05)] shadow-xl relative z-20 scanline-effect transition-all duration-300 ${isScrolled ? 'bg-[#050505]/80 backdrop-blur-xl border-white/10' : ''}`}>
+      <div suppressHydrationWarning={true} className={`max-w-7xl mx-auto glass-panel rounded-2xl p-4 flex items-center justify-between border-[rgba(255,255,255,0.05)] shadow-xl relative z-20 transition-all duration-300 ${isScrolled ? 'bg-[#050505]/80 backdrop-blur-xl border-white/10' : ''}`}>
         {/* Logo Text */}
         <Link href="/" className="flex items-center gap-3 shrink-0">
           <div className="flex flex-col">
@@ -126,18 +210,25 @@ const HeaderContent = memo(() => {
                 {/* Multi-Account Switcher */}
                 <div className="hidden sm:flex items-center gap-1 mr-2 relative">
                   <button
-                    onClick={() => signOut('/login?signup=true')}
+                    onClick={() => {
+                      const data = preserveProfileData();
+                      signOut('/login?signup=true');
+                    }}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95 border border-white/5"
                     title="Create New Profile"
                   >
                     <PlusCircle className="w-3.5 h-3.5" />
-                    Create Profile
+                    Add a Profile
                   </button>
 
                   <button
                     onClick={() => setIsSwitchOpen(!isSwitchOpen)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all border border-white/5"
-                    title="Switch Account"
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${
+                      isSwitchOpen
+                        ? 'bg-[var(--color-brand-purple)]/30 border-[var(--color-brand-pink)]/50 text-white'
+                        : 'bg-[var(--color-brand-purple)]/15 border-[var(--color-brand-pink)]/25 text-gray-200 hover:bg-[var(--color-brand-purple)]/25 hover:text-white'
+                    }`}
+                    title="Switch Identity"
                   >
                     <Users className="w-3.5 h-3.5 text-[var(--color-brand-pink)]" />
                     Switch
@@ -151,27 +242,56 @@ const HeaderContent = memo(() => {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 10 }}
-                          className="absolute top-full right-0 mt-2 w-56 glass-panel rounded-2xl p-2 border-white/10 shadow-2xl z-50 bg-[#0a0a0a]"
+                          className="absolute top-full right-0 mt-2 w-72 bg-[#050505] rounded-2xl p-2 border border-white/20 shadow-2xl z-[200] max-h-80 overflow-y-auto"
                         >
                           <div className="p-2 border-b border-white/5 mb-1">
-                            <span className="text-[8px] text-gray-500 font-black uppercase tracking-widest">Switch Identity</span>
+                            <span className="text-[8px] text-gray-500 font-black uppercase tracking-widest">Identities & Reserves</span>
                           </div>
-                          {savedAccounts.filter(acc => acc !== user.email).map(acc => (
+                          
+                          {/* Supabase Accounts */}
+                          {profiles.filter((p: StoredProfile) => p.email !== user?.email && p.type === 'account').length === 0 && guestHistory.length === 0 && (
+                            <p className="text-[10px] text-gray-500 text-center py-3">No other identities saved yet</p>
+                          )}
+                          {profiles.filter((p: StoredProfile) => p.email !== user?.email && p.type === 'account').map((p: StoredProfile) => (
                             <button
-                              key={acc}
-                              onClick={() => handleSwitchAccount(acc)}
+                              key={`acc-${p.email}`}
+                              onClick={() => handleSwitchAccount(p.email)}
                               className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 text-left transition-all"
                             >
-                              <div className="w-6 h-6 rounded-lg bg-gray-800 flex items-center justify-center text-[8px] font-black">{acc[0].toUpperCase()}</div>
-                              <span className="text-[10px] text-gray-300 font-bold truncate">{acc}</span>
+                              <div className="w-6 h-6 rounded-lg bg-[var(--color-brand-purple)]/20 text-[var(--color-brand-purple)] flex items-center justify-center text-[8px] font-black border border-white/5">{p.email[0].toUpperCase()}</div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-[10px] text-gray-300 font-bold truncate">{p.email}</span>
+                                <span className="text-[7px] text-gray-500 font-black uppercase tracking-widest">{p.password ? 'Quick Switch ✓' : 'Account'}</span>
+                              </div>
                             </button>
                           ))}
+
+                          {/* Guest Profiles */}
+                          {guestHistory.filter(h => h.email_address !== localStorage.getItem("TMAIL.PK_active_email")).map(h => (
+                            <button
+                              key={`guest-${h.email_address}`}
+                              onClick={() => handleSwitchAccount(h)}
+                              className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 text-left transition-all"
+                            >
+                              <div className="w-6 h-6 rounded-lg bg-[var(--color-brand-pink)]/20 text-[var(--color-brand-pink)] flex items-center justify-center text-[8px] font-black border border-white/5">G</div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-[10px] text-gray-300 font-bold truncate">{h.email_address}</span>
+                                <span className="text-[7px] text-[var(--color-brand-pink)]/70 font-black uppercase tracking-widest">Holographic Guest</span>
+                              </div>
+                            </button>
+                          ))}
+
+                          <div className="h-[1px] bg-white/5 my-1" />
+                          
                           <Link
                             href="/login?signup=true"
-                            className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 text-left transition-all text-[var(--color-brand-pink)]"
+                            className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 text-left transition-all text-[var(--color-brand-pink)] group"
+                            onClick={() => setIsSwitchOpen(false)}
                           >
-                            <PlusCircle className="w-4 h-4" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">New Account</span>
+                            <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center border border-white/5 group-hover:bg-[var(--color-brand-pink)]/20">
+                              <PlusCircle className="w-3 h-3" />
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest">Add a Profile</span>
                           </Link>
                         </motion.div>
                       </>
@@ -209,6 +329,14 @@ const HeaderContent = memo(() => {
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-brand-purple)] to-[var(--color-brand-pink)] flex items-center justify-center text-white font-black shadow-[0_0_15px_rgba(255,18,177,0.3)] group-hover:scale-105 transition-transform">
                     {(user.user_metadata?.username?.[0] || user.email?.[0]).toUpperCase()}
                   </div>
+                </button>
+
+                {/* Mobile Hamburger Button */}
+                <button 
+                  onClick={() => setIsMenuOpen(true)}
+                  className="md:hidden w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white"
+                >
+                  <Menu className="w-5 h-5" />
                 </button>
 
                 <AnimatePresence>
@@ -262,6 +390,163 @@ const HeaderContent = memo(() => {
           )}
         </div>
       </div>
+        {/* Mobile Sidebar Navigation */}
+        <AnimatePresence>
+          {isMenuOpen && (
+            <>
+              <div 
+                className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md" 
+                onClick={() => setIsMenuOpen(false)}
+              />
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="fixed top-0 right-0 bottom-0 w-80 z-[110] bg-[#0A0A0A] border-l border-white/10 p-8 shadow-2xl"
+              >
+                {/* Header within sidebar */}
+                <div className="flex items-center justify-between mb-12">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#ff12b1]">Navigation</span>
+                  <button onClick={() => setIsMenuOpen(false)} className="p-2 rounded-xl bg-white/5 text-gray-400">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-8">
+                  {/* Account Section */}
+                  <div className="space-y-4">
+                    <span className="text-[8px] font-black uppercase tracking-[0.3em] text-gray-500">Identity Control</span>
+                    {user ? (
+                      <div className="grid grid-cols-1 gap-3">
+                        <button
+                          onClick={() => { preserveProfileData(); setIsMenuOpen(false); signOut('/login?signup=true'); }}
+                          className="flex items-center gap-3 w-full p-4 rounded-2xl bg-white text-black text-[10px] font-black uppercase tracking-widest"
+                        >
+                          <PlusCircle className="w-4 h-4" />
+                          Add a Profile
+                        </button>
+                        <button
+                          onClick={() => setIsSwitchOpen(!isSwitchOpen)}
+                          className={`flex items-center gap-3 w-full p-4 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all ${
+                            isSwitchOpen
+                              ? 'bg-white/10 border-[var(--color-brand-pink)]/40 text-white'
+                              : 'bg-white/5 border-white/10 text-white'
+                          }`}
+                        >
+                          <Users className="w-4 h-4 text-[#ff12b1]" />
+                          Switch Identity ({profiles.filter((p: StoredProfile) => p.email !== user?.email && p.type === 'account').length + guestHistory.length})
+                        </button>
+                        
+                        <AnimatePresence>
+                          {isSwitchOpen && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -8 }}
+                              className="space-y-1 bg-white/5 rounded-2xl p-2 border border-white/5"
+                            >
+                              {/* Other Accounts */}
+                              {profiles.filter((p: StoredProfile) => p.email !== user?.email && p.type === 'account').length === 0 && guestHistory.length === 0 && (
+                                <p className="text-[10px] text-gray-500 text-center py-2">No other identities saved</p>
+                              )}
+                              {profiles.filter((p: StoredProfile) => p.email !== user?.email && p.type === 'account').map((p: StoredProfile) => (
+                                <button
+                                  key={`mob-acc-${p.email}`}
+                                  onClick={() => handleSwitchAccount(p.email)}
+                                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 text-left transition-all"
+                                >
+                                  <div className="w-6 h-6 rounded-lg bg-[var(--color-brand-purple)]/20 text-[var(--color-brand-purple)] flex items-center justify-center text-[8px] font-black shrink-0">{p.email[0].toUpperCase()}</div>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-[10px] text-gray-300 font-bold truncate">{p.email}</span>
+                                    <span className="text-[7px] text-gray-500 font-black uppercase tracking-widest">{p.password ? 'Quick Switch ✓' : 'Account'}</span>
+                                  </div>
+                                </button>
+                              ))}
+                              {/* Guest Profiles */}
+                              {guestHistory.map(h => (
+                                <button
+                                  key={`mob-guest-${h.email_address}`}
+                                  onClick={() => handleSwitchAccount(h)}
+                                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 text-left transition-all"
+                                >
+                                  <div className="w-6 h-6 rounded-lg bg-[var(--color-brand-pink)]/20 text-[var(--color-brand-pink)] flex items-center justify-center text-[8px] font-black shrink-0">G</div>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-[10px] text-gray-300 font-bold truncate">{h.email_address}</span>
+                                    <span className="text-[7px] text-[var(--color-brand-pink)]/70 font-black uppercase tracking-widest">Holographic Guest</span>
+                                  </div>
+                                </button>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                        <a
+                          href="/api/auth/signout"
+                          className="flex items-center gap-3 w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Sign Out
+                        </a>
+                        <button
+                          onClick={() => { setIsMenuOpen(false); handleDeleteAccount(); }}
+                          className="flex items-center gap-3 w-full p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Discard Identity
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-3">
+                        <Link 
+                          href="/login"
+                          onClick={() => setIsMenuOpen(false)}
+                          className="flex items-center gap-3 w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest"
+                        >
+                          <LogIn className="w-4 h-4" />
+                          System Login
+                        </Link>
+                        <Link 
+                          href="/login?signup=true"
+                          onClick={() => setIsMenuOpen(false)}
+                          className="flex items-center gap-3 w-full p-4 rounded-2xl bg-white text-black text-[10px] font-black uppercase tracking-widest shadow-xl shadow-white/5"
+                        >
+                          <PlusCircle className="w-4 h-4" />
+                          Generate Account
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Links Section */}
+                  <div className="space-y-4">
+                    <span className="text-[8px] font-black uppercase tracking-[0.3em] text-gray-500">Node Directories</span>
+                    <div className="grid grid-cols-1 gap-2">
+                       {navLinks.map((link, idx) => (
+                        <Link 
+                          key={`${link.href}-${idx}-mobile`}
+                          href={link.href} 
+                          onClick={() => setIsMenuOpen(false)}
+                          className={`flex items-center gap-3 p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${link.active ? 'bg-white/10 border-white/20 text-white' : 'bg-transparent border-transparent text-gray-400'}`}
+                        >
+                          <link.icon className={`w-4 h-4 ${link.isAdmin ? 'text-red-500' : ''}`} />
+                          {link.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Brand Sidebar */}
+                <div className="absolute bottom-8 left-8 right-8 text-center">
+                  <div className="flex flex-col items-center gap-2 opacity-30">
+                    <span className="text-xl font-black text-white italic uppercase tracking-[0.2em]">TMAIL.PK</span>
+                    <span className="text-[6px] font-mono text-gray-500 uppercase tracking-widest">Protocol v4.0.1 // Distributed Node</span>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
       <AnimatePresence>
         {showDeleteModal && (
@@ -316,6 +601,24 @@ const HeaderContent = memo(() => {
       </AnimatePresence>
 
       <div className="absolute bottom-0 left-4 right-4 h-[1px] bg-gradient-to-r from-transparent via-[var(--color-brand-pink)]/30 to-transparent"></div>
+
+      <AnimatePresence>
+        {isSwitching && (
+          <div className="fixed inset-0 z-[999] bg-black/80 backdrop-blur-md flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="glass-panel p-8 rounded-3xl flex flex-col items-center gap-4 border border-white/10 shadow-2xl"
+            >
+              <Loader2 className="w-10 h-10 text-[var(--color-brand-purple)] animate-spin" />
+              <div className="text-center">
+                <h3 className="text-white font-black tracking-widest uppercase">Connecting Identity</h3>
+                <p className="text-gray-400 text-xs mt-1 font-mono">{switchTarget}</p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </header>
   );
 });

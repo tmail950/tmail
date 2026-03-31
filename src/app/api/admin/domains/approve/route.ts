@@ -15,17 +15,8 @@ export async function POST(request: Request) {
     }
 
     // 1. Verify Admin Status
-    const adminClient = createAdminClient();
-    const { data: settingsData } = await adminClient.from('site_settings').select('*');
-    const settings: Record<string, string> = {};
-    settingsData?.forEach((s: any) => settings[s.key] = s.value);
-
-    const masterAdmin = settings.admin_email || 'info369skills@gmail.com';
-    
-    // Check master admin or developer backup
-    if (session.user.email !== masterAdmin && 
-        session.user.email !== 'info369skills@gmail.com' && 
-        session.user.email !== 'danubaba369@gmail.com') {
+    const { isMasterAdmin } = await import('@/lib/admin-check');
+    if (!await isMasterAdmin(session.user.email)) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
@@ -53,7 +44,8 @@ export async function POST(request: Request) {
     }
 
     // 4. Update Status and Cloudflare Info
-    const { error: updateError } = await supabase
+    const adminClient = createAdminClient();
+    const { error: updateError } = await adminClient
       .from('user_domains')
       .update({
         admin_approval: 'approved',

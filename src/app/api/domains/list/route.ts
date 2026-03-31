@@ -20,14 +20,26 @@ export async function GET() {
     // 2. Build the domain query
     let query = supabaseAdmin
       .from('user_domains')
-      .select('id, domain_name, is_verified, created_at, user_id')
+      .select('id, domain_name, is_verified, created_at, user_id, admin_approval')
       .eq('is_verified', true);
 
-    if (session?.user?.id) {
-      // Use efficient OR logic: Approved OR owned by current user
+    const masterAdminEmails = [
+      'info369skills@gmail.com',
+      'danubaba369@gmail.com',
+      'Admin@tmail.pk',
+      'master@tmail.pk'
+    ];
+
+    const isAdmin = session?.user?.email && masterAdminEmails.includes(session.user.email.toLowerCase());
+
+    if (isAdmin) {
+      // MASTER ADMIN: See everything that is verified
+      console.log(`API-DOMAINS-LIST: User ${session?.user?.email} is Master Admin. Showing all verified domains.`);
+    } else if (session?.user?.id) {
+      // NORMAL USER: Approved OR owned by current user
       query = query.or(`admin_approval.eq.approved,user_id.eq.${session.user.id}`);
     } else {
-      // Public view only shows approved domains
+      // PUBLIC/GUEST: Only approved domains
       query = query.eq('admin_approval', 'approved');
     }
 

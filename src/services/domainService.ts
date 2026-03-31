@@ -108,13 +108,15 @@ export const domainService = {
   },
 
   async deleteDomain(id: string) {
-    const { error, count } = await supabase
-      .from('user_domains')
-      .delete({ count: 'exact' })
-      .eq('id', id)
+    const res = await fetch('/api/admin/domains/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    })
 
-    if (error) throw error
-    if (count === 0) throw new Error('Deletion failed: Domain not found or permission denied.')
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Deletion failed.')
+    return data
   },
 
   async getCustomDomains() {
@@ -249,9 +251,17 @@ export const domainService = {
       .from('user_emails')
       .select('*')
       .eq('user_id', userId)
+      .eq('is_deleted_by_user', false)
       .order('created_at', { ascending: false });
     
     if (error) throw error;
+    
+    // Asynchronously touch the last_used_at for all listed emails
+    if (data && data.length > 0) {
+      const addresses = data.map((e: any) => e.email_address);
+      supabase.from('user_emails').update({ last_used_at: new Date().toISOString() }).in('email_address', addresses).then();
+    }
+    
     return data;
   },
   
@@ -300,7 +310,8 @@ export const domainService = {
         .insert({ 
           user_id: userId, 
           email_address: cleanAddress,
-          password: password
+          password: password,
+          last_used_at: new Date().toISOString()
         })
         .select();
 
@@ -346,7 +357,8 @@ export const domainService = {
       .from('guest_mailboxes')
       .insert({ 
         email_address: cleanAddress, 
-        password_hash: password // In production, hash this!
+        password_hash: password, // In production, hash this!
+        last_used_at: new Date().toISOString()
       })
       .select()
       .single();
@@ -368,18 +380,28 @@ export const domainService = {
       .select('*')
       .eq('email_address', cleanAddress)
       .eq('password_hash', password)
-      .single();
+      .maybeSingle(); // Don't filter by is_deleted_by_user here to allow reactivation
     
     if (error || !data) {
       throw new Error('Invalid address or password.');
     }
+
+    // Reactivate and touch last_used_at for guest
+    supabase.from('guest_mailboxes')
+      .update({ 
+        is_deleted_by_user: false, 
+        last_used_at: new Date().toISOString() 
+      })
+      .eq('email_address', cleanAddress)
+      .then();
+    
     return data;
   },
 
   async deleteUserEmail(userId: string, address: string) {
     const { error } = await supabase
       .from('user_emails')
-      .delete()
+      .update({ is_deleted_by_user: true })
       .eq('user_id', userId)
       .eq('email_address', address.toLowerCase().trim());
     
@@ -389,7 +411,7 @@ export const domainService = {
   async deleteGuestEmail(address: string) {
     const { error } = await supabase
       .from('guest_mailboxes')
-      .delete()
+      .update({ is_deleted_by_user: true })
       .eq('email_address', address.toLowerCase().trim());
     
     if (error) throw error;

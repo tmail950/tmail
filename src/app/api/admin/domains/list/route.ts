@@ -15,18 +15,12 @@ export async function GET() {
     }
 
     // 1. Verify Master Admin Authorization
-    const adminClient = createAdminClient()
-    const { data: settingsData } = await adminClient.from('site_settings').select('*')
-    const settings: Record<string, string> = {}
-    settingsData?.forEach((s: any) => settings[s.key] = s.value)
-    
-    const masterAdmin = settings.admin_email || 'info369skills@gmail.com'
-    
-    if (session.user.email !== masterAdmin && 
-        session.user.email !== 'info369skills@gmail.com' && 
-        session.user.email !== 'danubaba369@gmail.com') {
+    const { isMasterAdmin } = await import('@/lib/admin-check');
+    if (!await isMasterAdmin(session.user.email)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    const adminClient = createAdminClient()
 
     // 2. Fetch ALL domains using Admin Client (RLS Bypass)
     const { data, error } = await adminClient

@@ -17,7 +17,9 @@ export default function UserDomains() {
   const [verifying, setVerifying] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copiedType, setCopiedType] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [masterAdmin, setMasterAdmin] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   const copyToClipboard = (text: string, type: string) => {
     navigator.clipboard.writeText(text)
@@ -40,6 +42,9 @@ export default function UserDomains() {
 
   useEffect(() => {
     const init = async () => {
+      // Use locally tracking to prevent double-init or loops
+      if (authLoading || !user) return
+      
       try {
         setLoading(true)
         setError(null)
@@ -50,16 +55,9 @@ export default function UserDomains() {
         setMasterAdmin(adminEmail)
 
         // 2. Auth Check (Wait for authLoading to resolve)
-        if (authLoading) return
-
-        if (!user) {
-          router.push("/login")
-          return
-        }
-        
-        const isAuthorized = user.email === adminEmail || 
-                           user.email === 'info369skills@gmail.com' || 
-                           user.email === 'danubaba369@gmail.com'
+        const { isMasterAdmin: checkIsMaster } = await import('@/lib/admin-check')
+        const isAuthorized = await checkIsMaster(user.email)
+        setIsAdmin(isAuthorized)
 
         if (!isAuthorized) {
           router.push("/")
@@ -77,7 +75,7 @@ export default function UserDomains() {
       }
     }
     init()
-  }, [authLoading, user, router])
+  }, [user, authLoading, router])
 
   const handleAddDomain = async () => {
     if (!newDomain) return
@@ -115,16 +113,25 @@ export default function UserDomains() {
   }
 
   const handleDeleteDomain = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this domain?")) return
+    if (deleteConfirm !== id) {
+      setDeleteConfirm(id)
+      setTimeout(() => setDeleteConfirm(null), 5000)
+      return
+    }
+    
     try {
+      setIsSaving(true)
       await domainService.deleteDomain(id)
       setAllDomains(prev => prev.filter(d => d.id !== id))
       setError(null)
+      setDeleteConfirm(null)
     } catch (err: unknown) {
       const error = err as Error;
       setError(error.message)
       alert(`Deletion Failed: ${error.message}`)
       setTimeout(() => setError(null), 5000)
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -357,7 +364,7 @@ export default function UserDomains() {
                     </div>
                   </div>
                     <div className="flex items-center gap-2 relative z-10">
-                      {(user?.email === masterAdmin || user?.email === 'info369skills@gmail.com') && domain.admin_approval !== 'approved' && (
+                      {isAdmin && domain.admin_approval !== 'approved' && (
                         <button 
                           onClick={async () => {
                             await domainService.approveDomain(domain.id);
@@ -399,9 +406,23 @@ export default function UserDomains() {
                       )}
                       <button 
                         onClick={() => handleDeleteDomain(domain.id)}
-                        className="p-3 rounded-2xl bg-red-500/10 text-red-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white active:scale-90"
+                        disabled={isSaving}
+                        className={`p-3 rounded-2xl transition-all active:scale-90 flex items-center gap-2 group/del
+                          ${deleteConfirm === domain.id 
+                            ? 'bg-red-500 text-white w-auto px-4 opacity-100' 
+                            : 'bg-red-500/10 text-red-500 opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white'
+                          }`}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        {isSaving && deleteConfirm === domain.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : deleteConfirm === domain.id ? (
+                          <>
+                            <Trash2 className="w-4 h-4" />
+                            <span className="text-[10px] font-black uppercase tracking-widest animate-in fade-in slide-in-from-right-2">Confirm Delete</span>
+                          </>
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
                       </button>
                     </div>
                 </div>

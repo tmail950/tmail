@@ -15,19 +15,12 @@ export async function POST(request: Request) {
     }
 
     // 1. Verify Admin Status
-    const adminClient = createAdminClient();
-    const { data: settingsData } = await adminClient.from('site_settings').select('*');
-    const settings: Record<string, string> = {};
-    settingsData?.forEach((s: any) => settings[s.key] = s.value);
-
-    const masterAdmin = settings.admin_email || 'info369skills@gmail.com';
-    
-    // Check master admin or developer backup
-    if (session.user.email !== masterAdmin && 
-        session.user.email !== 'info369skills@gmail.com' && 
-        session.user.email !== 'danubaba369@gmail.com') {
+    const { isMasterAdmin } = await import('@/lib/admin-check');
+    if (!await isMasterAdmin(session.user.email)) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
+
+    const adminClient = createAdminClient();
 
     // 2. Check Cloudflare environment
     if (!process.env.CLOUDFLARE_API_TOKEN || !process.env.CLOUDFLARE_ACCOUNT_ID) {
@@ -37,7 +30,7 @@ export async function POST(request: Request) {
     }
 
     // 3. Fetch Domain Info
-    const { data: domain, error: fetchError } = await supabase
+    const { data: domain, error: fetchError } = await adminClient
       .from('user_domains')
       .select('*')
       .eq('id', id)
@@ -57,7 +50,7 @@ export async function POST(request: Request) {
 
         if (zone) {
             zoneId = zone.id;
-            await supabase
+            await adminClient
                 .from('user_domains')
                 .update({ cloudflare_zone_id: zoneId })
                 .eq('id', id);
@@ -73,7 +66,7 @@ export async function POST(request: Request) {
       await cloudflare.setupEmailRouting(zoneId, workerName);
       
       // Update DB status to active
-      await supabase
+      await adminClient
         .from('user_domains')
         .update({ cloudflare_status: 'active' })
         .eq('id', id);

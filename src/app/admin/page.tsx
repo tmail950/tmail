@@ -36,7 +36,14 @@ export default function AdminLoginPage() {
 
         if (error) throw error
 
-        if (email !== masterAdmin && email !== 'info369skills@gmail.com') {
+        const authorizedAdmins = [
+          masterAdmin, 
+          'info369skills@gmail.com',
+          'Admin@tmail.pk',
+          'master@tmail.pk'
+        ].filter(Boolean).map(e => e?.toLowerCase());
+
+        if (!authorizedAdmins.includes(email.toLowerCase())) {
           await supabase.auth.signOut()
           throw new Error('Access denied: Unauthorized admin attempt.')
         }

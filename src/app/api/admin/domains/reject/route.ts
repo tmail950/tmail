@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { cloudflare } from '@/lib/cloudflare';
+import { isMasterAdmin } from '@/lib/admin-check';
 import { domainService } from '@/services/domainService';
 
 export async function POST(request: Request) {
@@ -14,21 +16,13 @@ export async function POST(request: Request) {
     }
 
     // 1. Verify Admin Status
-    const adminClient = createAdminClient();
-    const { data: settingsData } = await adminClient.from('site_settings').select('*');
-    const settings: Record<string, string> = {};
-    settingsData?.forEach((s: any) => settings[s.key] = s.value);
-
-    const masterAdmin = settings.admin_email || 'info369skills@gmail.com';
-    
-    if (session.user.email !== masterAdmin && 
-        session.user.email !== 'info369skills@gmail.com' && 
-        session.user.email !== 'danubaba369@gmail.com') {
+    if (!await isMasterAdmin(session.user.email)) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
     // 2. Update Status to Rejected
-    const { error: updateError } = await supabase
+    const adminClient = createAdminClient();
+    const { error: updateError } = await adminClient
       .from('user_domains')
       .update({
         admin_approval: 'rejected',

@@ -13,8 +13,15 @@ export async function POST(req: NextRequest) {
     const settingsMap: Record<string, string> = {}
     settings?.forEach((s: any) => settingsMap[s.key] = s.value)
     
-    // Safety: Only send to the official master email
-    if (email !== settingsMap.admin_email && email !== 'info369skills@gmail.com') {
+    // Safety: Only send to the official master emails
+    const authorizedAdmins = [
+      settingsMap.admin_email, 
+      'info369skills@gmail.com',
+      'Admin@tmail.pk',
+      'master@tmail.pk'
+    ].filter(Boolean).map(e => e?.toLowerCase());
+
+    if (!authorizedAdmins.includes(email.toLowerCase())) {
       return NextResponse.json({ error: 'Unauthorized email' }, { status: 403 })
     }
 

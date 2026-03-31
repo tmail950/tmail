@@ -54,14 +54,29 @@ function extractBody(raw: string | null | undefined): string {
   
   let content = raw.slice(bodyStart).trim();
   
-  // Remove MIME headers and boundaries
-  content = content.replace(/--[a-zA-Z0-9'()+ ,./:?=-]+(--)?/g, '');
+  // Handle multipart messages - try to find the HTML part if it's a raw MIME dump
+  if (content.includes('Content-Type: text/html')) {
+    const htmlPart = content.split('Content-Type: text/html')[1].split('--')[0];
+    if (htmlPart) {
+      content = htmlPart.trim();
+    }
+  } else if (content.includes('Content-Type: text/plain')) {
+    const textPart = content.split('Content-Type: text/plain')[1].split('--')[0];
+    if (textPart) {
+      content = textPart.trim();
+    }
+  }
+
+  // Remove common MIME headers that might still be present
   content = content.replace(/Content-Type: [^\n]+\n/gi, '');
   content = content.replace(/Content-Transfer-Encoding: [^\n]+\n/gi, '');
   content = content.replace(/Content-Id: [^\n]+\n/gi, '');
   content = content.replace(/Content-Description: [^\n]+\n/gi, '');
   content = content.replace(/Content-Disposition: [^\n]+\n/gi, '');
   content = content.replace(/charset="?[a-zA-Z0-9-]+"?(;)?/gi, '');
+  
+  // Remove any remaining boundaries
+  content = content.replace(/--[a-zA-Z0-9'()+ ,./:?=-]+(--)?/g, '');
   
   return decodeQuotedPrintable(content.trim());
 }
@@ -100,7 +115,20 @@ export default memo(function EmailViewer({
   }
 
   const cleanBodyText = extractBody(email.body_text);
-  const displayHtml = email.body_html ? decodeQuotedPrintable(email.body_html) : (cleanBodyText.toLowerCase().includes('<div') || cleanBodyText.toLowerCase().includes('<p') ? cleanBodyText : null);
+  
+  // More robust HTML detection: looks for any tag pattern like <div, <p, <br, <a etc.
+  const isProbablyHtml = /<[a-z][\s\S]*>/i.test(cleanBodyText);
+  let rawHtml = email.body_html ? decodeQuotedPrintable(email.body_html) : (isProbablyHtml ? cleanBodyText : null);
+
+  // Inject dark theme override for standard HTML emails
+  const darkCss = `<style>
+    body, html { background-color: transparent !important; color: #e5e7eb !important; font-family: system-ui, -apple-system, sans-serif !important; }
+    table, td, th, div { background-color: transparent !important; color: inherit !important; border-color: rgba(255,255,255,0.1) !important; }
+    a { color: #ff12b1 !important; text-decoration: none !important; }
+    span, p, h1, h2, h3, h4, h5, h6 { color: #e5e7eb !important; }
+  </style>`;
+  
+  const displayHtml = rawHtml ? (rawHtml.includes('<head>') ? rawHtml.replace('<head>', `<head>${darkCss}`) : `${darkCss}${rawHtml}`) : null;
 
   return (
     <div className="h-full w-full flex flex-col bg-[#050505] rounded-[32px] border border-white/10 overflow-hidden shadow-2xl relative">
@@ -174,35 +202,14 @@ export default memo(function EmailViewer({
           </div>
         </div>
         
-        <div className="flex flex-col sm:flex-row justify-between sm:items-end gap-6">
-          <div className="grid grid-cols-1 gap-3">
-            <div className="flex items-center gap-4 group">
-              <span className="w-16 text-[10px] font-black text-gray-500 uppercase tracking-widest group-hover:text-gray-400 transition-colors">From</span>
-              <div className="px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-sm font-bold text-gray-200">
-                {email.sender || "Unknown Sender"}
-              </div>
-            </div>
-            <div className="flex items-center gap-4 group">
-              <span className="w-16 text-[10px] font-black text-gray-500 uppercase tracking-widest group-hover:text-gray-400 transition-colors">To</span>
-              <div className="px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-sm font-medium text-gray-400">
-                {email.recipient_address}
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex flex-col items-end gap-2">
-            <div className="px-4 py-2 rounded-xl bg-white/5 border border-white/5 font-mono text-xs text-gray-400">
-              {formatPST(email.received_at)}
-            </div>
-          </div>
-        </div>
+        {/* Metadata removed as per user request */}
       </div>
       
       {/* Body Content - clean message only */}
       <div className="flex-1 p-8 sm:p-12 overflow-y-auto custom-scrollbar bg-black/10 z-10">
         <div className="max-w-4xl mx-auto">
           {displayHtml ? (
-            <div className="bg-white rounded-3xl overflow-hidden min-h-[500px] shadow-2xl">
+            <div className="bg-transparent rounded-3xl overflow-hidden min-h-[500px]">
               <iframe
                 srcDoc={displayHtml}
                 className="w-full h-full min-h-[500px] border-0"

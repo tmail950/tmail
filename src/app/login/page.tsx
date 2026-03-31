@@ -38,9 +38,16 @@ function LoginContent() {
     // Multi-profile session reset: if we are on signup page, clear existing session
     // to allow creating a new account (since Supabase only allows one session)
     if (isSignupFromUrl) {
+      // Preserve account history BEFORE signing out so profiles aren't lost
+      const savedAccounts = localStorage.getItem('TMAIL.PK_saved_accounts');
+      const guestHistory = localStorage.getItem('TMAIL.PK_guest_history');
+      const profiles = localStorage.getItem('TMAIL.PK_profiles');
       supabase.auth.signOut().then(() => {
-        // Clear local guest state too
+        // Clear local guest state but restore account history
         localStorage.removeItem('TMAIL.PK_guest_activated');
+        if (savedAccounts) localStorage.setItem('TMAIL.PK_saved_accounts', savedAccounts);
+        if (guestHistory) localStorage.setItem('TMAIL.PK_guest_history', guestHistory);
+        if (profiles) localStorage.setItem('TMAIL.PK_profiles', profiles);
       });
     }
   }, [signupParam, isSignUp]);
@@ -95,6 +102,16 @@ function LoginContent() {
       });
 
       if (!authError) {
+        // Save to seamless profile store
+        try {
+          const profiles = JSON.parse(localStorage.getItem('TMAIL.PK_profiles') || '[]');
+          const p = { email: loginEmail, password, type: 'account' };
+          const idx = profiles.findIndex((x: any) => x.email === p.email);
+          if (idx >= 0) profiles[idx] = { ...profiles[idx], ...p };
+          else profiles.unshift(p);
+          localStorage.setItem('TMAIL.PK_profiles', JSON.stringify(profiles.slice(0, 9)));
+        } catch(e) {}
+        
         setMessage({ type: 'success', text: 'Signing you in...' })
         setTimeout(() => window.location.href = '/?auth=success', 500);
         return;
@@ -120,56 +137,90 @@ function LoginContent() {
         })
         if (signInError) throw signInError
 
+        // Save to seamless profile store
+        try {
+          const profiles = JSON.parse(localStorage.getItem('TMAIL.PK_profiles') || '[]');
+          const p = { email: loginEmail, password, type: 'account' };
+          const idx = profiles.findIndex((x: any) => x.email === p.email);
+          if (idx >= 0) profiles[idx] = { ...profiles[idx], ...p };
+          else profiles.unshift(p);
+          localStorage.setItem('TMAIL.PK_profiles', JSON.stringify(profiles.slice(0, 9)));
+        } catch(e) {}
+
         setMessage({ type: 'success', text: 'Account created!' })
         setTimeout(() => window.location.href = '/?auth=success', 1000)
         return;
       }
 
       // 3. Fallback: Search for guest mailbox or reserved user email if standard login failed
-      try {
-        const [prefix, domain] = loginEmail.split('@');
-        
-        // 3a. Check Guest Mailboxes (Try Prefix only, then Full Email)
-        let guestMailbox = await domainService.verifyGuestMailbox(prefix, password).catch(() => null);
-        if (!guestMailbox) {
-          guestMailbox = await domainService.verifyGuestMailbox(loginEmail, password).catch(() => null);
-        }
-
-        if (guestMailbox) {
-          localStorage.setItem("TMAIL.PK_active_email", guestMailbox.email_address);
-          localStorage.setItem("TMAIL.PK_guest_activated", "true");
-          localStorage.setItem("TMAIL.PK_guest_created_at", Date.now().toString());
-          localStorage.setItem("TMAIL.PK_guest_password", password);
-          
-          setMessage({ type: 'success', text: 'Guest mailbox verified!' })
-          setTimeout(() => window.location.href = '/', 1000)
-          return;
-        }
-      } catch (guestErr) {
-        // 3b. Check User Emails (reserved emails with passwords)
-        try {
-          const { data: userEmail, error: ueError } = await supabase
-            .from('user_emails')
-            .select('*')
-            .eq('email_address', loginEmail)
-            .eq('password', password)
-            .single();
-
-          if (userEmail) {
-            localStorage.setItem("TMAIL.PK_active_email", userEmail.email_address);
-            localStorage.setItem("TMAIL.PK_guest_activated", "false"); // It's a real user's reserved email
-            localStorage.setItem("TMAIL.PK_switched_manually", "true");
-            
-            setMessage({ type: 'success', text: 'Inbox access granted!' })
-            setTimeout(() => window.location.href = '/', 1000)
-            return;
-          }
-        } catch (ueErr) {
-          // If all fail, show the original auth error
-          throw authError;
-        }
-        throw authError;
+      const [prefix, domain] = loginEmail.split('@');
+      
+      // 3a. Check Guest Mailboxes
+      let guestMailbox = await domainService.verifyGuestMailbox(prefix, password).catch(() => null);
+      if (!guestMailbox) {
+        guestMailbox = await domainService.verifyGuestMailbox(loginEmail, password).catch(() => null);
       }
+
+      if (guestMailbox) {
+        const email = guestMailbox.email_address;
+        localStorage.setItem("TMAIL.PK_active_email", email);
+        localStorage.setItem("TMAIL.PK_last_confirmed_email", email);
+        localStorage.setItem("TMAIL.PK_guest_activated", "true");
+        localStorage.setItem("TMAIL.PK_guest_created_at", Date.now().toString());
+        localStorage.setItem("TMAIL.PK_guest_password", password);
+        
+        try {
+          const hJSON = localStorage.getItem("TMAIL.PK_guest_history") || "[]";
+          const history = JSON.parse(hJSON);
+          if (!history.find((x: any) => x.email_address === email)) {
+            history.unshift({ email_address: email, password });
+            localStorage.setItem("TMAIL.PK_guest_history", JSON.stringify(history.slice(0, 9)));
+          }
+        } catch(e) {}
+
+        setMessage({ type: 'success', text: 'Guest mailbox verified!' })
+        setTimeout(() => window.location.href = '/', 1000)
+        return;
+      }
+
+      // 3b. Check User Emails (reserved emails with passwords)
+      const { data: userEmail } = await supabase
+        .from('user_emails')
+        .select('*')
+        .eq('email_address', loginEmail)
+        .eq('password', password)
+        .maybeSingle();
+
+      if (userEmail) {
+        await supabase.from('user_emails')
+          .update({ is_deleted_by_user: false, last_used_at: new Date().toISOString() })
+          .eq('email_address', loginEmail);
+
+        const email = userEmail.email_address;
+        localStorage.setItem("TMAIL.PK_active_email", email);
+        localStorage.setItem("TMAIL.PK_last_confirmed_email", email);
+        localStorage.setItem("TMAIL.PK_guest_activated", "true");
+        localStorage.setItem("TMAIL.PK_guest_password", password);
+        localStorage.setItem("TMAIL.PK_switched_manually", "true");
+        
+        try {
+          const hJSON = localStorage.getItem("TMAIL.PK_guest_history") || "[]";
+          const history = JSON.parse(hJSON);
+          if (!history.find((x: any) => x.email_address === email)) {
+            history.unshift({ email_address: email, password });
+            localStorage.setItem("TMAIL.PK_guest_history", JSON.stringify(history.slice(0, 9)));
+          }
+        } catch(e) {}
+
+        setMessage({ type: 'success', text: 'Inbox access granted!' })
+        setTimeout(() => window.location.href = '/', 1000)
+        return;
+      }
+
+      // If we reach here, neither Guest nor UserEmail worked.
+      // Throw the original Supabase Auth error!
+      throw authError;
+
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message.includes('unique') ? 'This address is already in use' : error.message })
     } finally {

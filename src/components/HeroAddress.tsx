@@ -120,13 +120,12 @@ const HeroAddress = ({
                 <select
                   value={selectedDomain}
                   onChange={(e) => onDomainChange(e.target.value)}
-                  disabled={isLoggedIn}
-                  className={`w-full sm:w-auto bg-white/5 hover:bg-white/10 text-base sm:text-lg font-bold text-gray-300 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl outline-none cursor-pointer appearance-none transition-all text-center sm:text-left min-w-[140px] ${isLoggedIn ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`w-full sm:w-auto bg-white/5 hover:bg-white/10 text-base sm:text-lg font-bold text-gray-300 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl outline-none cursor-pointer appearance-none transition-all text-center sm:text-left min-w-[140px]`}
                 >
                   {verifiedDomains.length > 0 ? (
                     <>
                       <option value={selectedDomain} className="bg-[#050505]">{selectedDomain || "Select Domain"}</option>
-                      {isLoggedIn && verifiedDomains
+                      {verifiedDomains
                         .filter(d => d.domain_name !== selectedDomain)
                         .map(d => (
                           <option key={d.id} value={d.domain_name} className="bg-[#050505]">{d.domain_name}</option>
@@ -214,6 +213,7 @@ const HeroAddress = ({
                   const credentials = `Email: ${emailAddress}\nPassword: ${password}`;
                   navigator.clipboard.writeText(credentials);
                   setCopied(true);
+                  if (!isSaved) onSaveAddress?.(); // Auto-save on copy
                   setTimeout(() => setCopied(false), 2000);
                 }}
                 disabled={!emailAddress}
@@ -256,11 +256,13 @@ const HeroAddress = ({
             </div>
 
             {/* Saved Addresses Quick Switcher */}
-            {savedAddresses.length > 0 && (
+            {savedAddresses.filter(addr => addr !== emailAddress).length > 0 && (
               <div className="flex flex-col items-center gap-4 mt-4 py-6 border-t border-white/5">
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">RESERVES EMAILS ({savedAddresses.length})</span>
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">
+                  RESERVES EMAILS ({savedAddresses.filter(addr => addr !== emailAddress).length})
+                </span>
                 <div className="flex flex-wrap justify-center gap-2 max-w-2xl px-4">
-                  {savedAddresses.map((addr) => (
+                  {savedAddresses.filter(addr => addr !== emailAddress).map((addr) => (
                     <div key={addr} className="flex items-center gap-1 group/addr">
                       <button
                         onClick={() => onSwitchAddress?.(addr)}

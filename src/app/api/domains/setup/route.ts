@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       .from('site_settings')
       .select('value')
       .eq('key', 'auto_approve_domains')
-      .single();
+      .maybeSingle();
     
     const isAutoApprove = autoApproveSetting?.value === 'true';
 
@@ -46,12 +46,9 @@ export async function POST(request: Request) {
     // 2. Generate Verification Token
     const verificationToken = `TMAIL.PK-verify-${Math.random().toString(36).substring(2, 15)}`;
 
-    // Get valid admins from settings or hardcoded fallback
-    const settings = await supabase.from('site_settings').select('value').eq('key', 'admin_email').single();
-    const masterAdmin = settings.data?.value || 'info369skills@gmail.com';
-    const isAdmin = session.user.email === masterAdmin || 
-                    session.user.email === 'info369skills@gmail.com' || 
-                    session.user.email === 'danubaba369@gmail.com';
+    // Use unified admin check
+    const { isMasterAdmin } = await import('@/lib/admin-check');
+    const isAdmin = await isMasterAdmin(session.user.email);
 
     if (!isAutoApprove && !isAdmin) {
       // Manual approval mode: Just insert the domain as pending

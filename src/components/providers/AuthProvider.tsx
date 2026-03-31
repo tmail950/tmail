@@ -1,7 +1,7 @@
 "use client";
 
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { type User, type Session } from '@supabase/supabase-js'
 
@@ -34,8 +34,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!userEmail) return false
       
       try {
-        const masterAdmins = ['info369skills@gmail.com', 'danubaba369@gmail.com', 'abc@artradering.com']
-        if (masterAdmins.includes(userEmail)) return true
+        const masterAdmins = [
+          'info369skills@gmail.com', 
+          'danubaba369@gmail.com', 
+          'Admin@tmail.pk', 
+          'master@tmail.pk',
+          'abc@artradering.com'
+        ].map(e => e.toLowerCase())
+        if (userEmail && masterAdmins.includes(userEmail.toLowerCase())) return true
 
         const { data, error } = await supabase
           .from('admins')
@@ -129,17 +135,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log("AUTH: Termination sequence initiated...");
       
-      // 1. Purge local memory caches
+      // 1. Preserve account history before purging
+      const savedAccounts = localStorage.getItem('TMAIL.PK_saved_accounts');
+      const guestHistory = localStorage.getItem('TMAIL.PK_guest_history');
+      const profiles = localStorage.getItem('TMAIL.PK_profiles');
+
+      // 2. Purge local memory caches
       console.log("AUTH: Purging local memory caches...");
       localStorage.clear();
       sessionStorage.clear();
 
-      // 2. Redirect to server-side signout endpoint (this clears cookies & redirects to /login)
+      // 3. Restore account history so user can switch back
+      if (savedAccounts) localStorage.setItem('TMAIL.PK_saved_accounts', savedAccounts);
+      if (guestHistory) localStorage.setItem('TMAIL.PK_guest_history', guestHistory);
+      if (profiles) localStorage.setItem('TMAIL.PK_profiles', profiles);
+
+      // 4. Redirect to server-side signout endpoint (this clears cookies & redirects to /login)
       console.log("AUTH: Executing server-side termination...");
       const target = logoutNext ? `/api/auth/signout?next=${encodeURIComponent(logoutNext)}` : '/api/auth/signout';
       window.location.href = target;
       
-      // 3. Optional client-side cleanup if redirect takes time
+      // 5. Optional client-side cleanup if redirect takes time
       supabase.auth.signOut().catch(() => {});
       
     } catch (error) {
@@ -148,8 +164,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const value = useMemo(() => ({
+    user,
+    session,
+    isAdmin,
+    isLoading,
+    signOut
+  }), [user, session, isAdmin, isLoading]);
+
   return (
-    <AuthContext.Provider value={{ user, session, isAdmin, isLoading, signOut }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )
