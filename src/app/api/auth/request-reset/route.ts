@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     const supabase = createAdminClient();
     
     // 1. Get Master Admin Email
-    const { data: settings, error: settingsError } = await supabase
+    const { data: settings } = await supabase
       .from('site_settings')
       .select('value')
       .eq('key', 'admin_email')
@@ -20,10 +20,24 @@ export async function POST(req: Request) {
 
     const masterAdmin = settings?.value || 'info369skills@gmail.com';
 
-    // 2. Send Notification to Master Admin
-    await emailService.sendPasswordResetRequest(masterAdmin, email);
+    // 2. Insert into reset_requests table for Admin visibility
+    const { error: insertError } = await supabase
+      .from('reset_requests')
+      .insert({ email: email.toLowerCase().trim() });
 
-    return NextResponse.json({ success: true, message: 'Reset request sent to master admin.' });
+    if (insertError && insertError.code !== '23505') {
+       throw insertError;
+    }
+
+    // 3. Send Notification to Master Admin (Optional fallback)
+    try {
+      const { emailService } = await import('@/lib/email');
+      await emailService.sendPasswordResetRequest(masterAdmin, email);
+    } catch (e) {
+      console.warn('Email notification skipped:', e);
+    }
+
+    return NextResponse.json({ success: true, message: 'Reset request logged. Admin will assist you shortly.' });
   } catch (error: any) {
     console.error('Reset Request Error:', error);
     return NextResponse.json({ error: 'Failed to process reset request.' }, { status: 500 });

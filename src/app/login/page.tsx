@@ -18,6 +18,7 @@ function LoginContent() {
   const [selectedDomain, setSelectedDomain] = useState('')
   const [password, setPassword] = useState('')
   const [isSignUp, setIsSignUp] = useState(signupParam === 'true')
+  const [isForgotPassword, setIsForgotPassword] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(
@@ -28,31 +29,25 @@ function LoginContent() {
   const [passCopied, setPassCopied] = useState(false);
   const supabase = createClient()
 
-  // sync signup state from URL - only update if different to avoid redundant renders
   useEffect(() => {
     const isSignupFromUrl = signupParam === 'true';
     if (isSignUp !== isSignupFromUrl) {
       setIsSignUp(isSignupFromUrl);
     }
     
-    // Multi-profile session reset: if we are on signup page, clear existing session
-    // to allow creating a new account (since Supabase only allows one session)
     if (isSignupFromUrl) {
-      // Preserve account history BEFORE signing out so profiles aren't lost
       const savedAccounts = localStorage.getItem('TMAIL.PK_saved_accounts');
       const guestHistory = localStorage.getItem('TMAIL.PK_guest_history');
       const profiles = localStorage.getItem('TMAIL.PK_profiles');
       supabase.auth.signOut().then(() => {
-        // Clear local guest state but restore account history
         localStorage.removeItem('TMAIL.PK_guest_activated');
         if (savedAccounts) localStorage.setItem('TMAIL.PK_saved_accounts', savedAccounts);
         if (guestHistory) localStorage.setItem('TMAIL.PK_guest_history', guestHistory);
         if (profiles) localStorage.setItem('TMAIL.PK_profiles', profiles);
       });
     }
-  }, [signupParam, isSignUp]);
+  }, [signupParam]);
 
-  // Fetch domains and pre-fill from guest session
   useEffect(() => {
     const fetchDomains = async () => {
       try {
@@ -60,17 +55,18 @@ function LoginContent() {
         if (platformDomains && platformDomains.length > 0) {
           const names = platformDomains.map((d: any) => d.domain_name);
           setAvailableDomains(names);
-          if (names.length > 0 && !selectedDomain) setSelectedDomain(names[0]);
+          if (names.length > 0 && !selectedDomain) {
+            const randomIndex = Math.floor(Math.random() * names.length);
+            setSelectedDomain(names[randomIndex]);
+          }
           
-          // Pre-fill from localStorage if available
           const storedAddr = localStorage.getItem("TMAIL.PK_active_email");
-          const storedPass = localStorage.getItem("TMAIL.PK_guest_password");
+          // Remove password auto-fill
           
           if (storedAddr && storedAddr.includes("@")) {
             setFullEmail(storedAddr);
           }
-          
-          if (storedPass) setPassword(storedPass);
+          // Password field should always start empty for security
         }
       } catch (e) {
         console.error('Failed to init auth page', e);
@@ -78,6 +74,28 @@ function LoginContent() {
     };
     fetchDomains();
   }, []);
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullEmail.includes('@') || fullEmail.length < 5) {
+      setMessage({ type: 'error', text: 'Enter a valid email address.' });
+      return;
+    }
+    setLoading(true);
+    setMessage(null);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(fullEmail.toLowerCase().trim(), {
+        redirectTo: `${window.location.origin}/login/update-password`,
+      });
+      if (error) throw error;
+      setMessage({ type: 'success', text: 'Recovery link sent! Check your inbox.' });
+      setTimeout(() => setIsForgotPassword(false), 5000);
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to send recovery link.' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -89,7 +107,7 @@ function LoginContent() {
       : fullEmail.toLowerCase().trim());
 
     if (!loginEmail.includes('@') || loginEmail.length < 5) {
-      setMessage({ type: 'error', text: 'Please enter a valid email address (name@domain.com)' });
+      setMessage({ type: 'error', text: 'Enter a valid email (e.g. name@domain.com)' });
       setLoading(false);
       return;
     }
@@ -102,14 +120,13 @@ function LoginContent() {
       });
 
       if (!authError) {
-        // Save to seamless profile store
         try {
           const profiles = JSON.parse(localStorage.getItem('TMAIL.PK_profiles') || '[]');
           const p = { email: loginEmail, password, type: 'account' };
           const idx = profiles.findIndex((x: any) => x.email === p.email);
           if (idx >= 0) profiles[idx] = { ...profiles[idx], ...p };
           else profiles.unshift(p);
-          localStorage.setItem('TMAIL.PK_profiles', JSON.stringify(profiles.slice(0, 9)));
+          localStorage.setItem('TMAIL.PK_profiles', JSON.stringify(profiles.slice(0, 5)));
         } catch(e) {}
         
         setMessage({ type: 'success', text: 'Signing you in...' })
@@ -117,11 +134,8 @@ function LoginContent() {
         return;
       }
 
-      // 2. If Sign Up flow requested
       if (isSignUp) {
-        // Parse prefix and domain for legacy signup API if needed
         const [prefix, domain] = loginEmail.split('@');
-        
         const response = await fetch('/api/auth/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -129,7 +143,17 @@ function LoginContent() {
         })
 
         const result = await response.json()
-        if (!response.ok) throw new Error(result.error || 'Signup failed')
+        if (!response.ok) {
+          if (result.code === 'GUEST_EXISTS') {
+            setMessage({ type: 'error', text: result.error });
+            setTimeout(() => {
+              setIsSignUp(false);
+              router.push('/login');
+            }, 3000);
+            return;
+          }
+          throw new Error(result.error || 'Signup failed')
+        }
 
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: loginEmail,
@@ -137,25 +161,12 @@ function LoginContent() {
         })
         if (signInError) throw signInError
 
-        // Save to seamless profile store
-        try {
-          const profiles = JSON.parse(localStorage.getItem('TMAIL.PK_profiles') || '[]');
-          const p = { email: loginEmail, password, type: 'account' };
-          const idx = profiles.findIndex((x: any) => x.email === p.email);
-          if (idx >= 0) profiles[idx] = { ...profiles[idx], ...p };
-          else profiles.unshift(p);
-          localStorage.setItem('TMAIL.PK_profiles', JSON.stringify(profiles.slice(0, 9)));
-        } catch(e) {}
-
         setMessage({ type: 'success', text: 'Account created!' })
         setTimeout(() => window.location.href = '/?auth=success', 1000)
         return;
       }
 
-      // 3. Fallback: Search for guest mailbox or reserved user email if standard login failed
       const [prefix, domain] = loginEmail.split('@');
-      
-      // 3a. Check Guest Mailboxes
       let guestMailbox = await domainService.verifyGuestMailbox(prefix, password).catch(() => null);
       if (!guestMailbox) {
         guestMailbox = await domainService.verifyGuestMailbox(loginEmail, password).catch(() => null);
@@ -166,24 +177,23 @@ function LoginContent() {
         localStorage.setItem("TMAIL.PK_active_email", email);
         localStorage.setItem("TMAIL.PK_last_confirmed_email", email);
         localStorage.setItem("TMAIL.PK_guest_activated", "true");
-        localStorage.setItem("TMAIL.PK_guest_created_at", Date.now().toString());
         localStorage.setItem("TMAIL.PK_guest_password", password);
+        localStorage.setItem("TMAIL.PK_is_premium_access", "true"); 
         
         try {
           const hJSON = localStorage.getItem("TMAIL.PK_guest_history") || "[]";
           const history = JSON.parse(hJSON);
           if (!history.find((x: any) => x.email_address === email)) {
             history.unshift({ email_address: email, password });
-            localStorage.setItem("TMAIL.PK_guest_history", JSON.stringify(history.slice(0, 9)));
+            localStorage.setItem("TMAIL.PK_guest_history", JSON.stringify(history.slice(0, 5)));
           }
         } catch(e) {}
 
-        setMessage({ type: 'success', text: 'Guest mailbox verified!' })
+        setMessage({ type: 'success', text: 'Identity verified. You have 5 mailbox slots now!' })
         setTimeout(() => window.location.href = '/', 1000)
         return;
       }
 
-      // 3b. Check User Emails (reserved emails with passwords)
       const { data: userEmail } = await supabase
         .from('user_emails')
         .select('*')
@@ -192,37 +202,21 @@ function LoginContent() {
         .maybeSingle();
 
       if (userEmail) {
-        await supabase.from('user_emails')
-          .update({ is_deleted_by_user: false, last_used_at: new Date().toISOString() })
-          .eq('email_address', loginEmail);
-
         const email = userEmail.email_address;
         localStorage.setItem("TMAIL.PK_active_email", email);
         localStorage.setItem("TMAIL.PK_last_confirmed_email", email);
         localStorage.setItem("TMAIL.PK_guest_activated", "true");
         localStorage.setItem("TMAIL.PK_guest_password", password);
-        localStorage.setItem("TMAIL.PK_switched_manually", "true");
-        
-        try {
-          const hJSON = localStorage.getItem("TMAIL.PK_guest_history") || "[]";
-          const history = JSON.parse(hJSON);
-          if (!history.find((x: any) => x.email_address === email)) {
-            history.unshift({ email_address: email, password });
-            localStorage.setItem("TMAIL.PK_guest_history", JSON.stringify(history.slice(0, 9)));
-          }
-        } catch(e) {}
+        localStorage.setItem("TMAIL.PK_is_premium_access", "true");
 
         setMessage({ type: 'success', text: 'Inbox access granted!' })
         setTimeout(() => window.location.href = '/', 1000)
         return;
       }
 
-      // If we reach here, neither Guest nor UserEmail worked.
-      // Throw the original Supabase Auth error!
       throw authError;
-
     } catch (error: any) {
-      setMessage({ type: 'error', text: error.message.includes('unique') ? 'This address is already in use' : error.message })
+      setMessage({ type: 'error', text: error.message })
     } finally {
       setLoading(false)
     }
@@ -241,16 +235,43 @@ function LoginContent() {
         <div className="relative z-10 text-center space-y-8">
           <div className="space-y-4">
             <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-white via-white to-gray-500 bg-clip-text text-transparent">
-              {isSignUp ? 'New Inbox' : 'Access Mail'}
+              {isForgotPassword ? 'Recover Access' : (isSignUp ? 'New Inbox' : 'Access Mail')}
             </h1>
             <p className="text-gray-400 text-sm font-medium">
-              {isSignUp ? 'Choose your professional holographic prefix' : 'Sign in to your disposable workspace'}
+              {isForgotPassword ? 'Enter your email to receive a secure reset link' : (isSignUp ? 'Create a new professional email' : 'Sign in to access your mail')}
             </p>
           </div>
 
-          <form onSubmit={handleAuth} className="space-y-6">
-            <div className="space-y-4">
-              {/* Holographic Input - Prefix + Domain (Unified Ultra-Streamlined) */}
+          {isForgotPassword ? (
+            <form onSubmit={handleResetPassword} className="space-y-6" autoComplete="off">
+              <div className="space-y-4">
+                <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-[32px] transition-all group-within:border-[var(--color-brand-pink)]/30 hover:bg-white/10 transition-colors">
+                  <div className="pl-4 text-[var(--color-brand-pink)] shrink-0">
+                    <Mail className="w-5 h-5 opacity-70" />
+                  </div>
+                  <input
+                    type="email"
+                    placeholder="Enter your account email"
+                    required
+                    autoComplete="off"
+                    value={fullEmail}
+                    onChange={(e) => setFullEmail(e.target.value)}
+                    className="flex-1 min-w-0 px-4 py-4 bg-transparent outline-none text-white text-xl sm:text-2xl font-black lowercase placeholder:text-gray-700"
+                  />
+                </div>
+              </div>
+              
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-5 rounded-[24px] font-black uppercase tracking-[0.2em] shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 bg-gradient-to-r from-[var(--color-brand-purple)] to-[var(--color-brand-pink)] hover:shadow-[var(--color-brand-pink)]/30 text-white text-[11px]"
+              >
+                {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'SEND RECOVERY LINK'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleAuth} className="space-y-6" autoComplete="off">
+              <div className="space-y-4">
               <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-[32px] transition-all group-within:border-[var(--color-brand-pink)]/30 group-hover:bg-white/10 transition-colors">
                 <div className="pl-4 text-[var(--color-brand-pink)] shrink-0">
                   <Mail className="w-5 h-5 opacity-70" />
@@ -262,6 +283,8 @@ function LoginContent() {
                       type="text"
                       placeholder="prefix"
                       required
+                      autoComplete="off"
+                      data-lpignore="true"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       className="flex-1 min-w-0 px-2 py-4 bg-transparent outline-none text-white text-xl sm:text-2xl font-black lowercase placeholder:text-gray-700"
@@ -273,13 +296,9 @@ function LoginContent() {
                         onChange={(e) => setSelectedDomain(e.target.value)}
                         className="bg-transparent text-gray-300 text-sm font-black py-1 outline-none cursor-pointer appearance-none min-w-[100px]"
                       >
-                        {availableDomains.length > 0 ? (
-                          availableDomains.map(d => (
-                            <option key={d} value={d} className="bg-[#050505]">{d}</option>
-                          ))
-                        ) : (
-                          <option value="" className="bg-[#050505]">Loading...</option>
-                        )}
+                        {availableDomains.map(d => (
+                          <option key={d} value={d} className="bg-[#050505]">{d}</option>
+                        ))}
                       </select>
                     </div>
                   </>
@@ -288,6 +307,8 @@ function LoginContent() {
                     type="email"
                     placeholder="name@domain.com"
                     required
+                    autoComplete="off"
+                    data-lpignore="true"
                     value={fullEmail}
                     onChange={(e) => setFullEmail(e.target.value)}
                     className="flex-1 min-w-0 px-4 py-4 bg-transparent outline-none text-white text-xl sm:text-2xl font-black lowercase placeholder:text-gray-700"
@@ -305,13 +326,11 @@ function LoginContent() {
                     }
                   }}
                   className={`mr-2 p-3 transition-all ${prefixCopied ? 'text-green-400' : 'text-gray-500 hover:text-white'} rounded-xl`}
-                  title="Copy Address"
                 >
                   {prefixCopied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
                 </button>
               </div>
               
-              {/* Password Input with Eye & Copy */}
               <div className="relative group/pass">
                 <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-600 transition-colors group-focus-within/pass:text-[var(--color-brand-pink)]">
                   <Lock className="w-4 h-4" />
@@ -320,6 +339,8 @@ function LoginContent() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Secret Key"
                   required
+                  autoComplete="new-password"
+                  data-lpignore="true"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-14 pr-28 py-5 rounded-[24px] bg-white/5 border border-white/10 focus:border-[var(--color-brand-pink)] transition-all outline-none text-white text-sm font-mono tracking-[0.2em] placeholder:tracking-normal placeholder:font-sans"
@@ -333,7 +354,6 @@ function LoginContent() {
                       setTimeout(() => setPassCopied(false), 2000);
                     }}
                     className={`p-2 rounded-lg transition-all ${passCopied ? 'text-green-400 bg-green-400/10' : 'text-gray-600 hover:text-white'}`}
-                    title="Copy Password"
                   >
                     {passCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   </button>
@@ -346,36 +366,15 @@ function LoginContent() {
                   </button>
                 </div>
               </div>
-              
+
               {!isSignUp && (
-                <div className="flex justify-end px-2">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const emailToReset = fullEmail.toLowerCase().trim();
-                      if (!emailToReset || !emailToReset.includes('@')) {
-                        setMessage({ type: 'error', text: 'Please enter your email address first.' });
-                        return;
-                      }
-                      setLoading(true);
-                      try {
-                        const res = await fetch('/api/auth/request-reset', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ email: emailToReset }),
-                        });
-                        const data = await res.json();
-                        if (!res.ok) throw new Error(data.error || 'Failed to send request');
-                        setMessage({ type: 'success', text: 'Reset request sent to master admin.' });
-                      } catch (err: any) {
-                        setMessage({ type: 'error', text: err.message });
-                      } finally {
-                        setLoading(false);
-                      }
-                    }}
-                    className="text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-[var(--color-brand-pink)] transition-colors"
+                <div className="flex justify-end px-2 mt-1">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsForgotPassword(true)}
+                    className="text-[10px] uppercase font-black tracking-widest text-gray-500 hover:text-[var(--color-brand-pink)] active:scale-95 transition-all"
                   >
-                    Forgot Password?
+                    Forgot Secret Key?
                   </button>
                 </div>
               )}
@@ -389,25 +388,38 @@ function LoginContent() {
               {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (isSignUp ? 'SignUP' : 'Login now')}
             </button>
           </form>
+          )}
 
-          <div className="pt-4 border-t border-white/5">
-            <button 
-              onClick={() => {
-                const goingToSignup = !isSignUp;
-                // Just push the route, the useEffect will sync the state
-                // This reduces the 'hang' feeing by letting Next.js handle the navigation
-                router.push(goingToSignup ? '/login?signup=true' : '/login');
-              }}
-              className="text-gray-500 hover:text-white transition-all group/toggle flex items-center justify-center gap-2 mx-auto"
-            >
-              <span className="text-[10px] uppercase font-black tracking-widest">
-                {isSignUp ? 'Already member?' : 'New here?'}
-              </span>
-              <span className="text-[10px] uppercase font-black tracking-widest text-[var(--color-brand-pink)] group-hover:underline underline-offset-4 decoration-2">
-                {isSignUp ? 'Log In' : 'Create One'}
-              </span>
-            </button>
-          </div>
+          <footer className="pt-4 border-t border-white/5">
+            {isForgotPassword ? (
+              <button 
+                onClick={() => setIsForgotPassword(false)}
+                className="text-gray-500 hover:text-white transition-all group/toggle flex items-center justify-center gap-2 mx-auto"
+              >
+                <span className="text-[10px] uppercase font-black tracking-widest">
+                  Remembered it?
+                </span>
+                <span className="text-[10px] uppercase font-black tracking-widest text-[var(--color-brand-pink)] group-hover:underline underline-offset-4 decoration-2">
+                  Back to Login
+                </span>
+              </button>
+            ) : (
+              <button 
+                onClick={() => {
+                  const goingToSignup = !isSignUp;
+                  router.push(goingToSignup ? '/login?signup=true' : '/login');
+                }}
+                className="text-gray-500 hover:text-white transition-all group/toggle flex items-center justify-center gap-2 mx-auto"
+              >
+                <span className="text-[10px] uppercase font-black tracking-widest">
+                  {isSignUp ? 'Already member?' : 'New here?'}
+                </span>
+                <span className="text-[10px] uppercase font-black tracking-widest text-[var(--color-brand-pink)] group-hover:underline underline-offset-4 decoration-2">
+                  {isSignUp ? 'Log In' : 'Create One'}
+                </span>
+              </button>
+            )}
+          </footer>
 
           <AnimatePresence mode="wait">
             {message && (
@@ -428,7 +440,6 @@ function LoginContent() {
         </div>
       </motion.div>
 
-      {/* Social Login (Optional/Coming Soon/Standard) */}
       <div className="mt-8 opacity-20 hover:opacity-100 transition-opacity">
         <button className="flex items-center gap-3 px-8 py-3 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 hover:text-white transition-all">
           <Chrome className="w-4 h-4" />
@@ -441,13 +452,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-[70vh]">
-        <div className="p-8 rounded-full bg-white/5 border border-white/10">
-          <Loader2 className="w-8 h-8 text-[var(--color-brand-pink)] animate-spin" />
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[70vh]"><Loader2 className="w-8 h-8 animate-spin" /></div>}>
       <LoginContent />
     </Suspense>
   )

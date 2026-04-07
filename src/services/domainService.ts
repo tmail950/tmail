@@ -311,7 +311,8 @@ export const domainService = {
           user_id: userId, 
           email_address: cleanAddress,
           password: password,
-          last_used_at: new Date().toISOString()
+          last_used_at: new Date().toISOString(),
+          is_used: true // Mark as used for strict allotment
         })
         .select();
 
@@ -339,10 +340,10 @@ export const domainService = {
     }
   },
 
-  async guestAssociateEmail(address: string, password: string) {
+  async guestAssociateEmail(address: string, password: string): Promise<any> {
     const cleanAddress = address.toLowerCase().trim();
 
-    // CROSS-TABLE CHECK: Ensure not in user_emails either
+    // CROSS-TABLE CHECK: Ensure not in user_emails
     const { data: existingUser } = await supabase
       .from('user_emails')
       .select('email_address')
@@ -350,7 +351,28 @@ export const domainService = {
       .maybeSingle();
     
     if (existingUser) {
-      throw new Error('This address is already taken.');
+      throw new Error('This address is already taken by a registered user.');
+    }
+
+    // GUEST-IDENTITY CHECK: If exists, verify password
+    const { data: existingGuest, error: fetchError } = await supabase
+      .from('guest_mailboxes')
+      .select('*')
+      .eq('email_address', cleanAddress)
+      .maybeSingle();
+
+    if (existingGuest) {
+      if (existingGuest.password_hash === password) {
+        // Correct password - allow re-access/reactivation
+        if (existingGuest.is_deleted_by_user) {
+          await supabase.from('guest_mailboxes')
+            .update({ is_deleted_by_user: false, last_used_at: new Date().toISOString() })
+            .eq('email_address', cleanAddress);
+        }
+        return existingGuest;
+      } else {
+        throw new Error('This address is already managed by a different secret key.');
+      }
     }
 
     const { data, error } = await supabase
@@ -358,15 +380,16 @@ export const domainService = {
       .insert({ 
         email_address: cleanAddress, 
         password_hash: password, // In production, hash this!
-        last_used_at: new Date().toISOString()
+        last_used_at: new Date().toISOString(),
+        is_used: true // Mark as used for strict allotment
       })
       .select()
       .single();
     
     if (error) {
-      if (error.code === '23505') throw new Error('This address is already taken.');
-      if (error.message?.includes('not found')) {
-        throw new Error('Database table missing. Please run the SQL migration in backend/guest_mailboxes.sql');
+      if (error.code === '23505') {
+        // Race condition check
+        return this.guestAssociateEmail(address, password);
       }
       throw error;
     }

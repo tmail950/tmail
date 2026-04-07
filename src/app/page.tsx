@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { RefreshCw, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import HeroAddress from "@/components/HeroAddress";
 import Sidebar from "@/components/Sidebar";
 import EmailViewer from "@/components/EmailViewer";
@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { domainService, type DomainRecord } from "@/services/domainService";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { generateAsianName } from "@/lib/nameGenerator";
+import SystemStats from "@/components/SystemStats";
 
 function generateRandomString(length: number) {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -45,7 +46,10 @@ export default function Home() {
   const [isFirstLoad, setIsFirstLoad] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
   const [lockMessage, setLockMessage] = useState<string | null>(null);
+  const [tabId, setTabId] = useState<string | null>(null);
+  const [regenCount, setRegenCount] = useState<number>(0);
   const lastActivatedAddr = useRef<string | null>(null);
+  const hasInitialized = useRef(false);
 
   // 2. Memoized Values
   const address = useMemo(() => {
@@ -56,7 +60,6 @@ export default function Home() {
   // 3. Callback Functions
   const fetchDomains = useCallback(async () => {
     try {
-      // 1. Fetch Guest/Public Domains
       const platformDomains = await domainService.listPublicDomains();
       const publicMapped = platformDomains.map((d: any) => ({
         id: d.id,
@@ -65,7 +68,6 @@ export default function Home() {
         created_at: d.created_at
       } as DomainRecord));
 
-      // 2. Fetch User's Professional Domains (if logged in)
       let professionalMapped: DomainRecord[] = [];
       if (user) {
         const userDomains = await domainService.listDomains();
@@ -79,14 +81,15 @@ export default function Home() {
           } as DomainRecord));
       }
 
-      // 3. Merge & Deduplicate (Professional domains take priority)
       const mergedMap = new Map();
       publicMapped.forEach(d => mergedMap.set(d.domain_name, d));
       professionalMapped.forEach(d => mergedMap.set(d.domain_name, d));
 
-      return Array.from(mergedMap.values()).sort((a, b) => 
+      let finalDomains = Array.from(mergedMap.values()).sort((a, b) => 
         a.domain_name.localeCompare(b.domain_name)
       );
+
+      return finalDomains;
     } catch (err) {
       console.error("Domain fetch error:", err);
       return [];
@@ -106,22 +109,29 @@ export default function Home() {
   }, [user]);
 
   const handleDomainChange = useCallback((newDomain: string) => {
-    if (user) return; // Prevent domain change for logged-in users
+    if (user) return; 
     setSelectedDomain(newDomain);
     localStorage.setItem("TMAIL.PK_selected_domain", newDomain);
   }, [user]);
+
 
   const handleSwitchEmail = useCallback((newAddress: string) => {
     const [newPrefix, newDom] = newAddress.split('@');
     setPrefix(newPrefix);
     setSelectedDomain(newDom);
     
-    // If guest, find and set password from history/state
+    // Update local list order to keep switched email at top
+    setUserEmails(prev => {
+      const target = prev.find(e => (e.email_address || e) === newAddress);
+      const filtered = prev.filter(e => (e.email_address || e) !== newAddress);
+      if (target) return [target, ...filtered];
+      return prev;
+    });
+
     const target = userEmails.find(e => e.email_address === newAddress);
     if (target && target.password) {
       setMailboxPassword(target.password);
     } else {
-      // Check localStorage history as fallback
       const historyJSON = localStorage.getItem("TMAIL.PK_guest_history") || "[]";
       const history = JSON.parse(historyJSON);
       const found = history.find((h: any) => h.email_address === newAddress);
@@ -134,9 +144,12 @@ export default function Home() {
     setSelectedEmailId(null);
     setShowSuccess(false);
     setSaveError(null);
-    localStorage.setItem('TMAIL.PK_switched_manually', 'true');
-    setTimeout(() => localStorage.removeItem('TMAIL.PK_switched_manually'), 5000);
-  }, [userEmails]);
+    
+    // Sync to tab localStorage immediately
+    if (tabId) {
+      localStorage.setItem(`TMAIL.PK_active_email_${tabId}`, newAddress);
+    }
+  }, [userEmails, tabId]);
 
   const handleSaveEmail = useCallback(async (isAutoSave = false, overrideAddress?: string, overridePassword?: string) => {
     const targetAddress = overrideAddress || address;
@@ -144,7 +157,7 @@ export default function Home() {
     
     if (!user) {
       if (!targetAddress || !targetPassword) {
-        setSaveError("Please set a password to activate your guest inbox.");
+        setSaveError("Please set a Secret Key to activate your mailbox.");
         return;
       }
       
@@ -170,19 +183,28 @@ export default function Home() {
           return;
         }
 
-        const guestMailbox = await domainService.guestAssociateEmail(targetAddress, targetPassword);
+        await domainService.guestAssociateEmail(targetAddress, targetPassword);
         
-        // Persist in guest history
         const historyJSON = localStorage.getItem("TMAIL.PK_guest_history") || "[]";
-        const history = JSON.parse(historyJSON);
+        let history = JSON.parse(historyJSON);
         if (!history.find((h: any) => h.email_address === targetAddress)) {
           history.unshift({ email_address: targetAddress, password: targetPassword });
+          
+          const isPremium = !!user;
+          const limit = isPremium ? 9 : 4;
+          
+          if (history.length > limit) {
+             history = history.slice(0, limit);
+          }
           localStorage.setItem("TMAIL.PK_guest_history", JSON.stringify(history));
         }
 
         setUserEmails(prev => {
-          if (prev.some(e => e.email_address === targetAddress)) return prev;
-          return [{ email_address: targetAddress, guest: true, password: targetPassword }, ...prev];
+          const isPremium = !!user;
+          const limit = isPremium ? 9 : 4;
+          const filteredPrev = prev.filter(e => e.email_address !== targetAddress);
+          const newEmails = [{ email_address: targetAddress, guest: true, password: targetPassword }, ...filteredPrev];
+          return newEmails.slice(0, limit);
         });
         
         setShowSuccess(true);
@@ -193,31 +215,24 @@ export default function Home() {
         localStorage.setItem("TMAIL.PK_last_confirmed_email", targetAddress);
         localStorage.setItem("TMAIL.PK_guest_created_at", Date.now().toString());
       } catch (err: any) {
-        const msg = err.message || "";
         setIsSavingEmail(false);
-        setSaveError(msg || "Activation failure.");
+        setSaveError(err.message || "Failed to activate. Please try again.");
       }
       return;
     }
     
-    if (!targetAddress || !targetAddress.includes('@') || targetAddress.endsWith('@')) {
-      setSaveError("Please select a domain before activating.");
+    if (user && userEmails.length >= 9) {
+      setSaveError("You have reached the limit of 9 emails for your account.");
       return;
     }
-    if (isSavingEmail) return;
 
     setIsSavingEmail(true);
     setSaveError(null);
     setShowSuccess(false);
-    
-    const spinnerTimeout = setTimeout(() => {
-      setIsSavingEmail(false);
-    }, 10000);
 
     try {
-      // 1. Ownership Check: If already reserved by this user, skip DB call
-      if (userEmails.some(e => e.email_address === targetAddress)) {
-        console.log(`AUTO-SAVE: ${targetAddress} already reserved by user. Skipping.`);
+      const isAlreadyOwned = userEmails.some(e => e.email_address === targetAddress);
+      if (isAlreadyOwned) {
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 2000);
         setIsSavingEmail(false);
@@ -225,148 +240,126 @@ export default function Home() {
       }
 
       const newEmail = await domainService.associateEmail(user.id, targetAddress, undefined, targetPassword);
-      setUserEmails(prev => [newEmail, ...prev]);
-      
+      // Immediately move the newly created/activated email to the top of the reserve list
+      setUserEmails(prev => {
+        const filtered = prev.filter(e => e.email_address !== newEmail.email_address);
+        return [newEmail, ...filtered];
+      });
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
-      clearTimeout(spinnerTimeout);
       setIsSavingEmail(false);
+      // Clear manual switch flag after successful save to allow standard sync
+      setTimeout(() => localStorage.removeItem('TMAIL.PK_switched_manually'), 2000);
     } catch (err: any) {
-      clearTimeout(spinnerTimeout);
       setIsSavingEmail(false);
       const msg = err.message || "";
-      
-      // COLLISION AUTO-RETRY: If it's a collision during auto-gen, try again silently
-      if (isAutoSave && (msg.includes("unique") || msg.includes("taken") || msg.includes("taken"))) {
-        console.log("COLLISION: Auto-retrying generation...");
+      if (isAutoSave && (msg.includes("unique") || msg.includes("taken"))) {
         setTimeout(() => handleAutoGenerate(), 100);
         return;
       }
-
-      setSaveError(msg || "Activation failure.");
-      console.error("Save email error:", err);
+      setSaveError(msg || "Failed to activate. Please try again.");
     }
-  }, [user, address, isSavingEmail, setUserEmails, mailboxPassword, userEmails]);
+  }, [user, address, isSavingEmail, mailboxPassword, userEmails]);
 
   const handleAutoGenerate = useCallback((explicit = false) => {
-    if (isSavingEmail) return; // Prevent generating while saving
+    if (isSavingEmail) return;
     
+    const isPremium = !!user; // Strictly check for logged-in user
+    const limit = isPremium ? 9 : 4;
+
+    if (userEmails.length >= limit) {
+      const msg = user 
+        ? "You have reached the limit of 9 emails." 
+        : `Limit reached (Max ${limit}). Create an account for more.`;
+      setSaveError(msg);
+      return;
+    }
+
+    const newCount = regenCount + 1;
+    setRegenCount(newCount);
+    if (tabId) {
+      localStorage.setItem(`TMAIL.PK_regen_count_${tabId}`, newCount.toString());
+    }
+
     const newPrefix = generateAsianName();
     setPrefix(newPrefix);
+    
+    // Set manual switch flag to prevent the 'Active Address' reset logic from interfering
+    if (user) {
+      localStorage.setItem('TMAIL.PK_switched_manually', 'true');
+    }
 
-    // If logged in and no domain selected, default to user domain if it's in verified list
     if (user?.email && !selectedDomain && verifiedDomains.length > 0) {
       const userDom = user.email.split('@')[1];
       if (verifiedDomains.some(d => d.domain_name === userDom)) {
         setPrefix(user.email.split('@')[0]);
         setSelectedDomain(userDom);
       }
-    } else if (!selectedDomain && verifiedDomains.length > 0) {
-      setSelectedDomain(verifiedDomains[0].domain_name);
+    } else if (verifiedDomains.length > 0) {
+      // Randomize domain for EVERYONE (guest or logged in)
+      const randomIndex = Math.floor(Math.random() * verifiedDomains.length);
+      setSelectedDomain(verifiedDomains[randomIndex].domain_name);
     }
     
     setIsAuto(true);
-    if (explicit) setIsFirstLoad(false); // Mark as user-initiated
-    
+    if (explicit) setIsFirstLoad(false); 
     lastActivatedAddr.current = null; 
     setMailboxPassword(generateRandomPassword());
     setShowSuccess(false);
     setSaveError(null);
-
-    // AUTO-ACTIVATE: We rely on the useEffect [user, prefix, selectedDomain] 
-    // to trigger handleSaveEmail(true) automatically when the prefix updates.
-    // No redundant setTimeout needed here.
-  }, [user, isSavingEmail, handleSaveEmail]);
-
-  const handleDeleteEmail = useCallback(async (addr: string) => {
-    try {
-      if (user) {
-        await domainService.deleteUserEmail(user.id, addr);
-      } else {
-        await domainService.deleteGuestEmail(addr);
-        // Remove from guest history
-        const historyJSON = localStorage.getItem("TMAIL.PK_guest_history") || "[]";
-        const history = JSON.parse(historyJSON);
-        const newHistory = history.filter((h: any) => h.email_address !== addr);
-        localStorage.setItem("TMAIL.PK_guest_history", JSON.stringify(newHistory));
-      }
-
-      // If current address is being deleted, always generate a clean slate instead of falling back to old mail
-      if (address === addr) {
-        localStorage.removeItem("TMAIL.PK_last_confirmed_email");
-        handleAutoGenerate();
-      }
-
-      setUserEmails(prev => prev.filter(e => e.email_address !== addr));
-    } catch (err: any) {
-      console.error("Delete error:", err);
-      setSaveError("Failed to delete inbox.");
-    }
-  }, [user, address, userEmails, handleAutoGenerate, handleSwitchEmail]);
-
-  const simulateEmail = useCallback(async () => {
-    if (!address) return;
-    try {
-      await supabase.from("emails").insert({
-        sender: "test@future.corp",
-        subject: "Holographic Protocol Approved",
-        recipient_address: address,
-        body_text: "Your temporary email sequence has been successfully initialized. Welcome to the TMAIL.PK network.\n\nKeep shifting the paradigm.",
-        received_at: new Date().toISOString()
-      });
-    } catch (e) {
-    }
-  }, [address]);
+  }, [user, isSavingEmail, regenCount, tabId, verifiedDomains, selectedDomain, userEmails.length]);
 
   useEffect(() => {
     setIsMounted(true);
+    let currentTabId = sessionStorage.getItem("TMAIL.PK_tab_id");
+    if (!currentTabId) {
+      currentTabId = generateRandomString(8);
+      sessionStorage.setItem("TMAIL.PK_tab_id", currentTabId);
+    }
+    setTabId(currentTabId);
+    const storedRegen = localStorage.getItem(`TMAIL.PK_regen_count_${currentTabId}`);
+    if (storedRegen) {
+      setRegenCount(parseInt(storedRegen));
+    }
   }, []);
 
   const handleSimulateEmail = useCallback(async () => {
     if (!address) return;
     try {
-      const { error } = await supabase.from("emails").insert({
+      await supabase.from("emails").insert({
         sender: "test@TMAIL.PK.sbs",
         subject: "Welcome to your Holographic Inbox",
         recipient_address: address,
-        body_text: "Your guest temporary mailbox is active and ready to receive. This is a simulated test message.",
-        body_html: "<p>Your <b>guest temporary mailbox</b> is active and ready to receive. This is a simulated test message.</p>",
+        body_text: "Your guest temporary mailbox is active and ready to receive.",
+        body_html: "<p>Your <b>guest temporary mailbox</b> is active and ready to receive.</p>",
       });
-      if (error) throw error;
     } catch (err: any) {
       console.error("Simulation error:", err);
     }
   }, [address]);
 
-  // 4. Side Effects (useEffect)
-  // Fetch domains only once on mount or when auth settles
   useEffect(() => {
     if (authLoading) return;
-    
     let mounted = true;
     const loadDomains = async () => {
-      console.log("DOMAINS: Initializing background fetch...");
       const domains = await fetchDomains();
       if (mounted) {
         setVerifiedDomains(domains);
         setIsDomainLoading(false);
       }
     };
-
     loadDomains();
     return () => { mounted = false; };
-  }, [authLoading]); // Removed fetchDomains as dependency since it's a stable useCallback
+  }, [authLoading, fetchDomains]);
 
   useEffect(() => {
     if (user && !authLoading) {
-      console.log("EMAILS: Syncing holographic reserves...");
       fetchUserEmails();
     }
   }, [user, authLoading, fetchUserEmails]);
 
   useEffect(() => {
     if (!user || authLoading) return;
-
     if (userEmails.length > 0) {
       const firstEmail = userEmails[0].email_address;
       if (address !== firstEmail && !localStorage.getItem('TMAIL.PK_switched_manually')) {
@@ -382,18 +375,22 @@ export default function Home() {
       setSelectedDomain(loginDom);
       setIsAuto(false);
     }
-  }, [user, userEmails, authLoading]);
+  }, [user, userEmails.length, authLoading, address]);
 
   useEffect(() => {
-    // Immediate completion for better performance unless we really need it
     setIsInitialLoading(false);
   }, []);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (!tabId || hasInitialized.current || authLoading || isDomainLoading) return;
 
-    const storedAddress = localStorage.getItem("TMAIL.PK_active_email");
-    const storedDomain = localStorage.getItem("TMAIL.PK_selected_domain");
+    const activeKey = `TMAIL.PK_active_email_${tabId}`;
+    const domainKey = `TMAIL.PK_selected_domain_${tabId}`;
+    const passwordKey = `TMAIL.PK_guest_password_${tabId}`;
+    const createdKey = `TMAIL.PK_guest_created_at_${tabId}`;
+
+    const storedAddress = localStorage.getItem(activeKey);
+    const storedDomain = localStorage.getItem(domainKey);
     const forceNew = sessionStorage.getItem("forceNewTMAIL.PKEmail");
     const urlParams = new URLSearchParams(window.location.search);
     const authSuccess = urlParams.get('auth') === 'success';
@@ -401,136 +398,103 @@ export default function Home() {
     if (forceNew === "true" || !storedAddress || !storedAddress.includes("@") || authSuccess) {
       if (authSuccess && user?.email && verifiedDomains.length > 0) {
         const [loginPrefix, loginDom] = user.email.split('@');
-        
-        // ONLY auto-activate if the login domain is physically one of the system's live nodes
         if (verifiedDomains.some(d => d.domain_name === loginDom)) {
           setPrefix(loginPrefix);
           setSelectedDomain(loginDom);
           setIsAuto(false);
-
           const defaultPass = generateRandomPassword();
           setMailboxPassword(defaultPass);
-
-          // Auto-save and activate the user's email instantly
           setTimeout(() => {
             handleSaveEmail(true, user.email, defaultPass);
           }, 1000);
+          hasInitialized.current = true;
         } else {
-          // External login domain (e.g. admin@tmail.pk or @gmail.com) -> Generate fresh inbox on valid node
-          setPrefix(generateAsianName());
-          setSelectedDomain(verifiedDomains[0].domain_name);
-          setIsAuto(true);
-          setMailboxPassword(generateRandomPassword());
+          handleAutoGenerate();
+          hasInitialized.current = true;
         }
       } else if (user && userEmails.length > 0) {
         const [storedPrefix, storedDom] = userEmails[0].email_address.split("@");
         setPrefix(storedPrefix);
         setSelectedDomain(storedDom);
         setIsAuto(false);
+        hasInitialized.current = true;
       } else if (user?.email) {
         const loginPrefix = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
         setPrefix(loginPrefix);
         setIsAuto(false);
-      } else {
-        setPrefix(generateAsianName());
-        setIsAuto(true);
-        setMailboxPassword(generateRandomPassword());
-        // Track guest creation time
-        if (!localStorage.getItem("TMAIL.PK_guest_created_at")) {
-          localStorage.setItem("TMAIL.PK_guest_created_at", Date.now().toString());
+        hasInitialized.current = true;
+      } else if (!user && verifiedDomains.length > 0) {
+        handleAutoGenerate();
+        if (!localStorage.getItem(createdKey)) {
+          localStorage.setItem(createdKey, Date.now().toString());
         }
+        setIsFirstLoad(false); 
+        hasInitialized.current = true;
       }
       sessionStorage.removeItem("forceNewTMAIL.PKEmail");
-    } else {
-      // Check 1-day session for anonymous users
+    } else if (storedAddress && verifiedDomains.length > 0) {
       if (!user) {
-        const createdAt = localStorage.getItem("TMAIL.PK_guest_created_at");
-        if (createdAt) {
-          const oneDay = 24 * 60 * 60 * 1000;
-          if (Date.now() - parseInt(createdAt) > oneDay) {
-            setSessionExpired(true);
-          }
+        const createdAt = localStorage.getItem(createdKey);
+        if (createdAt && Date.now() - parseInt(createdAt) > 24 * 60 * 60 * 1000) {
+          setSessionExpired(true);
         }
       }
       const [storedPrefix, storedDom] = storedAddress.split("@");
       setPrefix(storedPrefix);
-      // Use stored domain if available, otherwise use domain from address
       setSelectedDomain(storedDomain || storedDom);
       setIsAuto(false);
-      setSaveError(null);
+      const storedPass = localStorage.getItem(passwordKey);
+      if (storedPass) setMailboxPassword(storedPass);
       
-      // Restore guest password if it exists
-      const storedPass = localStorage.getItem("TMAIL.PK_guest_password");
-      if (storedPass) {
-        setMailboxPassword(storedPass);
-      }
-      
-      // GUEST ACCOUNT RESTORE: If guest, ensure all history appears in list
       if (!user) {
-        const historyJSON = localStorage.getItem("TMAIL.PK_guest_history") || "[]";
-        const history = JSON.parse(historyJSON);
-        
+        const history = JSON.parse(localStorage.getItem("TMAIL.PK_guest_history") || "[]");
         setUserEmails(prev => {
-          // Combine history with initial active email
+          const isPremium = typeof window !== 'undefined' && localStorage.getItem('TMAIL.PK_is_premium_access') === 'true';
+          const limit = isPremium ? 9 : 4;
           const currentHistory = history.map((h: any) => ({ ...h, guest: true }));
-          const combined = [...currentHistory];
-          
-          if (storedAddress && !combined.some(e => e.email_address === storedAddress)) {
-            combined.unshift({ email_address: storedAddress, guest: true, password: localStorage.getItem("TMAIL.PK_guest_password") });
+          if (storedAddress && !currentHistory.some((e:any) => e.email_address === storedAddress)) {
+            currentHistory.unshift({ email_address: storedAddress, guest: true, password: storedPass });
           }
-          
-          return combined;
+          return currentHistory.slice(0, limit);
         });
       }
+      hasInitialized.current = true;
     }
-  }, [authLoading, user, userEmails.length, verifiedDomains]);
+  }, [authLoading, isDomainLoading, user, userEmails.length, verifiedDomains, tabId, handleAutoGenerate]);
 
   useEffect(() => {
     if (user && !authLoading && verifiedDomains.length > 0 && userEmails.length === 0 && !address) {
-      console.log("LOGIN: Auto-generating initial inbox for user...");
       handleAutoGenerate();
-      const timer = setTimeout(() => {
-        handleSaveEmail();
-      }, 2000);
+      const timer = setTimeout(() => handleSaveEmail(), 2000);
       return () => clearTimeout(timer);
     }
-  }, [user, authLoading, verifiedDomains, userEmails, address, handleSaveEmail, handleAutoGenerate]);
+  }, [user, authLoading, verifiedDomains, userEmails.length, address, handleSaveEmail, handleAutoGenerate]);
 
   useEffect(() => {
-    if (verifiedDomains.length === 0 || authLoading) return;
-    
-    // Choose the best domain to initialize with
+    if (verifiedDomains.length === 0 || authLoading || !hasInitialized.current) return;
     let targetDomain = selectedDomain;
-
     if (!targetDomain || !verifiedDomains.some(d => d.domain_name === targetDomain)) {
        if (user?.email) {
-         targetDomain = user.email.split('@')[1];
+          targetDomain = user.email.split('@')[1];
        } else {
-         targetDomain = verifiedDomains[0].domain_name;
+          const randomIndex = Math.floor(Math.random() * verifiedDomains.length);
+          targetDomain = verifiedDomains[randomIndex]?.domain_name || "";
        }
     }
-
     if (targetDomain && targetDomain !== selectedDomain) {
       setSelectedDomain(targetDomain);
     }
   }, [verifiedDomains, selectedDomain, user, authLoading]);
 
-  // Auto-activate mailbox logic
   useEffect(() => {
     if (!prefix || !mailboxPassword || verifiedDomains.length === 0 || !selectedDomain || isSavingEmail || showSuccess) return;
-
     const currentAddr = `${prefix.toLowerCase().replace(/[^a-z0-9]/g, '')}@${selectedDomain}`;
-    
-    // Check ref to avoid re-running
     if (lastActivatedAddr.current === currentAddr) return;
-
     const isAlreadySaved = userEmails.some(e => e.email_address === currentAddr);
     if (isAlreadySaved) {
       lastActivatedAddr.current = currentAddr;
       return;
     }
-
-    // If this is the confirmed email in localStorage, restore silently
     const confirmedEmail = localStorage.getItem("TMAIL.PK_last_confirmed_email");
     if (confirmedEmail === currentAddr) {
       lastActivatedAddr.current = currentAddr;
@@ -540,52 +504,32 @@ export default function Home() {
       });
       return;
     }
-    // ONLY AUTO-ACTIVATE if it's NOT the first load 
-    // OR if we already own it (handled above).
-    // This prevents "Silent Saves" just by opening the page.
-    if (isFirstLoad) {
-      console.log("SKIP: Silent activation avoided on first load.");
-      return;
-    }
-
+    if (isFirstLoad) return;
     const timer = setTimeout(() => {
-      console.log("AUTO: Activating holographic inbox for", currentAddr);
       lastActivatedAddr.current = currentAddr;
       handleSaveEmail(true);
     }, 1000);
-    
     return () => clearTimeout(timer);
-  }, [user, prefix, mailboxPassword, selectedDomain, verifiedDomains.length, isSavingEmail, showSuccess, handleSaveEmail, userEmails]);
+  }, [user, prefix, mailboxPassword, selectedDomain, verifiedDomains.length, isSavingEmail, showSuccess, handleSaveEmail, userEmails.length]);
 
   useEffect(() => {
-    if (address) {
-      const activeStored = localStorage.getItem("TMAIL.PK_active_email");
-      if (activeStored !== address) {
-        localStorage.setItem("TMAIL.PK_active_email", address);
+    if (address && tabId) {
+      const activeKey = `TMAIL.PK_active_email_${tabId}`;
+      if (localStorage.getItem(activeKey) !== address) {
+        localStorage.setItem(activeKey, address);
       }
     }
-    
-    // Default to user domain ONLY if no domain is selected and verified domains are loaded
-    if (user?.email && !selectedDomain && verifiedDomains.length > 0) {
-      const userDom = user.email.split('@')[1];
-      if (verifiedDomains.some(d => d.domain_name === userDom)) {
-        setSelectedDomain(userDom);
-      }
-    }
-  }, [address, user, selectedDomain]);
+  }, [address, tabId]);
 
   useEffect(() => {
-    if (mailboxPassword) {
-      localStorage.setItem("TMAIL.PK_guest_password", mailboxPassword);
+    if (mailboxPassword && tabId) {
+      localStorage.setItem(`TMAIL.PK_guest_password_${tabId}`, mailboxPassword);
     }
-  }, [mailboxPassword]);
+  }, [mailboxPassword, tabId]);
 
-  // 5. External Hook Usage
   const isAddressSaved = useMemo(() => userEmails.some(e => e.email_address === address), [userEmails, address]);
   const { emails, isLoading } = useEmails(isAddressSaved ? address : null);
   const selectedEmail = emails.find((e) => e.id === selectedEmailId) || null;
-
-  // Memoize addresses to prevent HeroAddress re-renders
   const savedAddressList = useMemo(() => userEmails.map(e => e.email_address), [userEmails]);
 
   if (!isMounted) return null;
@@ -604,20 +548,29 @@ export default function Home() {
               <Loader2 className="w-12 h-12 text-[var(--color-brand-pink)] animate-spin relative z-10" />
             </div>
             <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.3em] animate-pulse">
-              Calibrating Holographic Grid...
+              Starting your mail session...
             </p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col h-[calc(100vh-120px)] w-full max-w-7xl mx-auto space-y-6 flex-1 px-4 sm:px-0">
-        <div className="flex-1 flex flex-col items-center justify-start py-8 sm:py-16">
+      <div className="flex flex-col h-[calc(100vh-60px)] w-full max-w-7xl mx-auto space-y-2 flex-1 px-4 sm:px-0">
+        <div className="flex-0 flex flex-col items-center justify-start pt-1 pb-1 sm:pt-2 sm:pb-1">
+          {user && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-1 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-[0.2em] text-gray-500"
+            >
+              Account Active: <span className="text-[var(--color-brand-pink)]">{user.email}</span>
+            </motion.div>
+          )}
           <HeroAddress 
             emailAddress={address} 
             prefix={prefix}
             onPrefixChange={(val) => {
               if (val === "_LOCK_MSG_") {
-                setLockMessage("Create account for more multiple domains.");
+                setLockMessage("Create an account to use more domains.");
                 setTimeout(() => setLockMessage(null), 5000);
                 return;
               }
@@ -631,14 +584,13 @@ export default function Home() {
             onDomainChange={handleDomainChange}
             onSwitchAddress={handleSwitchEmail}
             onSaveAddress={handleSaveEmail}
-            onDeleteAddress={handleDeleteEmail}
             savedAddresses={savedAddressList}
             isSaving={isSavingEmail}
             isSaved={isAddressSaved}
             showSuccess={showSuccess}
             isLoggedIn={!!user}
             isDomainLoading={isDomainLoading}
-            error={lockMessage || saveError || (sessionExpired ? "Session expired. Please login to continue." : null)}
+            error={lockMessage || saveError || (sessionExpired ? "Session expired. Please login again." : null)}
             password={mailboxPassword}
             onPasswordChange={setMailboxPassword}
             sessionExpired={sessionExpired}
@@ -646,7 +598,7 @@ export default function Home() {
           />
         </div>
 
-        <div className="flex-1 min-h-0 border border-white/10 rounded-3xl overflow-hidden glass-panel flex flex-col shadow-2xl relative mb-8">
+        <div className="flex-1 min-h-[200px] sm:min-h-[300px] border border-white/10 rounded-2xl overflow-hidden glass-panel flex flex-col shadow-2xl relative mb-2">
           <div className="flex h-full w-full overflow-hidden">
             {isLoading ? (
               <div className="flex-1 flex items-center justify-center">
@@ -665,6 +617,8 @@ export default function Home() {
             )}
           </div>
         </div>
+
+        <SystemStats />
 
         <AnimatePresence>
           {selectedEmail && (

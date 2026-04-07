@@ -13,7 +13,6 @@ interface HeroAddressProps {
   verifiedDomains: DomainRecord[];
   onDomainChange: (val: string) => void;
   onSaveAddress?: () => void;
-  onDeleteAddress?: (addr: string) => void;
   onSwitchAddress?: (addr: string) => void;
   savedAddresses?: string[];
   isSaving?: boolean;
@@ -56,7 +55,6 @@ const HeroAddress = ({
   const [prefixCopied, setPrefixCopied] = useState(false);
   const [passCopied, setPassCopied] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [deletingAddr, setDeletingAddr] = useState<string | null>(null);
 
   const handleCopy = () => {
     if (!emailAddress) return;
@@ -75,10 +73,10 @@ const HeroAddress = ({
       <div className="relative group w-full max-w-3xl">
         <div className="absolute -inset-1 bg-gradient-to-r from-[--color-brand-purple] via-[--color-brand-pink] to-[--color-brand-orange] rounded-[40px] blur-2xl opacity-20 group-hover:opacity-40 transition duration-1000 animate-pulse-glow"></div>
 
-        <div className="relative bg-black/40 backdrop-blur-md sm:backdrop-blur-2xl rounded-[30px] sm:rounded-[40px] p-6 sm:p-12 border border-white/10 flex flex-col items-center text-center overflow-hidden">
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none opacity-30"></div>
+        <div className="relative bg-black/40 backdrop-blur-md sm:backdrop-blur-2xl rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 border border-white/10 flex flex-col items-center text-center overflow-hidden">
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none opacity-20"></div>
 
-          <div className="flex items-center gap-2 mb-6">
+          <div className="flex items-center gap-2 mb-3">
             <span className="w-1.5 h-1.5 rounded-full bg-[--color-brand-pink] animate-ping"></span>
             <h2 className="text-xs font-black text-gray-400 tracking-[0.3em] uppercase relative z-10">
               ACTIVE INBOX
@@ -87,16 +85,50 @@ const HeroAddress = ({
 
           <div className="flex flex-col gap-8 w-full relative z-10">
             {/* Main Interactive Address Input */}
-            <div className={`flex flex-col items-center justify-center gap-4 w-full p-4 sm:p-6 rounded-[24px] sm:rounded-[32px] bg-white/[0.03] border border-white/5 group-hover:border-white/10 transition-all mb-8 sm:flex-row sm:gap-4`}>
-              <div className="flex items-center justify-center gap-2 w-full sm:w-auto sm:flex-1">
+            <div className={`flex flex-col items-center justify-center gap-3 w-full p-3 sm:p-4 rounded-[20px] sm:rounded-[28px] bg-white/[0.03] border border-white/5 group-hover:border-white/10 transition-all mb-4`}>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 w-full">
                 <input
                   type="text"
                   value={prefix}
                   onChange={(e) => onPrefixChange(e.target.value)}
                   readOnly={true}
-                  className="bg-transparent text-2xl sm:text-3xl font-black text-white outline-none min-w-0 text-center sm:text-left cursor-default w-full sm:w-auto"
+                  className="bg-transparent text-xl sm:text-2xl font-black text-white outline-none min-w-0 text-center sm:text-left cursor-default w-full sm:w-auto"
                   placeholder="prefix"
                 />
+                
+                <span className="text-xl text-gray-600 font-light hidden sm:inline">@</span>
+                <span className="sm:hidden text-lg text-gray-700 font-black">@</span>
+
+                <div className="relative w-full sm:w-auto group/dom">
+                  <select
+                    value={selectedDomain}
+                    onChange={(e) => onDomainChange(e.target.value)}
+                    className={`w-full sm:w-auto bg-white/5 hover:bg-white/10 text-base sm:text-lg font-bold text-gray-300 px-4 sm:px-5 py-2 sm:py-3 rounded-xl outline-none cursor-pointer appearance-none transition-all text-center sm:text-left min-w-[150px]`}
+                  >
+                    {verifiedDomains.length > 0 ? (
+                      <>
+                        <option value={selectedDomain} className="bg-[#050505]">{selectedDomain || "Select Domain"}</option>
+                        {verifiedDomains
+                          .filter(d => d.domain_name !== selectedDomain)
+                          .map(d => (
+                            <option key={d.id} value={d.domain_name} className="bg-[#050505]">{d.domain_name}</option>
+                          ))}
+                      </>
+                    ) : (
+                      <option value="" className="bg-[#050505]">
+                        {isDomainLoading ? "Loading..." : "No Domains"}
+                      </option>
+                    )}
+                  </select>
+                  {!isLoggedIn && (
+                    <button
+                      type="button"
+                      onClick={() => onPrefixChange?.("_LOCK_MSG_")}
+                      className="absolute inset-0 cursor-pointer z-10 w-full h-full bg-transparent border-none appearance-none"
+                    ></button>
+                  )}
+                </div>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -104,53 +136,17 @@ const HeroAddress = ({
                     setPrefixCopied(true);
                     setTimeout(() => setPrefixCopied(false), 2000);
                   }}
-                  className={`flex items-center gap-1 p-2 rounded-lg transition-all ${prefixCopied ? 'text-green-400 bg-green-400/10' : 'text-gray-500 hover:text-white'}`}
+                  className={`flex items-center justify-center p-2 rounded-lg transition-all ${prefixCopied ? 'text-green-400 bg-green-400/10' : 'text-gray-500 hover:text-white'}`}
                   title="Copy Full Address"
                 >
-                  {prefixCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {prefixCopied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
                 </button>
-              </div>
-
-              <span className="text-2xl text-gray-600 font-light hidden sm:inline">@</span>
-              <div className="sm:hidden w-8 h-[1px] bg-white/10"></div>
-              <span className="sm:hidden text-lg text-gray-700 font-black">@</span>
-              <div className="sm:hidden w-8 h-[1px] bg-white/10"></div>
-
-              <div className="relative w-full sm:w-auto overflow-hidden group/dom">
-                <select
-                  value={selectedDomain}
-                  onChange={(e) => onDomainChange(e.target.value)}
-                  className={`w-full sm:w-auto bg-white/5 hover:bg-white/10 text-base sm:text-lg font-bold text-gray-300 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl outline-none cursor-pointer appearance-none transition-all text-center sm:text-left min-w-[140px]`}
-                >
-                  {verifiedDomains.length > 0 ? (
-                    <>
-                      <option value={selectedDomain} className="bg-[#050505]">{selectedDomain || "Select Domain"}</option>
-                      {verifiedDomains
-                        .filter(d => d.domain_name !== selectedDomain)
-                        .map(d => (
-                          <option key={d.id} value={d.domain_name} className="bg-[#050505]">{d.domain_name}</option>
-                        ))}
-                    </>
-                  ) : (
-                    <option value="" className="bg-[#050505]">
-                      {isDomainLoading ? "Calibrating Domains..." : "No Approved Domains"}
-                    </option>
-                  )}
-                </select>
-                {!isLoggedIn && (
-                  <button
-                    type="button"
-                    onClick={() => onPrefixChange?.("_LOCK_MSG_")}
-                    className="absolute inset-0 cursor-pointer z-10 w-full h-full bg-transparent border-none appearance-none"
-                    title="Create account for more multiple domains"
-                  ></button>
-                )}
               </div>
             </div>
 
             {/* Password Input for All Users (Consistency) */}
-            <div className="flex flex-col items-center gap-2 w-full max-w-sm mx-auto mb-4">
-              <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Mailbox Password</label>
+            <div className="flex flex-col items-center gap-1 w-full max-w-xs mx-auto mb-2">
+              <label className="text-[9px] font-black text-gray-600 uppercase tracking-[0.2em]">Secret Key</label>
               <div className="relative w-full">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -226,22 +222,7 @@ const HeroAddress = ({
                 {copied ? "COPIED" : "COPY CREDENTIALS"}
               </button>
 
-              {(isSaved || showSuccess) && !sessionExpired && (
-                <div className="flex items-center gap-3 px-8 py-4 sm:py-3.5 rounded-2xl bg-green-500/10 border border-green-500/20 text-green-400 font-bold tracking-widest uppercase text-[10px]">
-                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                  Active
-                  {onSimulate && (
-                    <button
-                      onClick={onSimulate}
-                      className="ml-2 pl-2 border-l border-green-500/30 text-green-300 hover:text-white transition-colors"
-                      title="Send Test Email"
-                    >
-                      <Zap className="w-3 h-3" />
-                      Test
-                    </button>
-                  )}
-                </div>
-              )}
+              {/* Indicators removed (Auto-Active) */}
 
 
               {!isLoggedIn && sessionExpired && (
@@ -273,26 +254,6 @@ const HeroAddress = ({
                       >
                         {addr}
                       </button>
-                      <button
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          if (deletingAddr === addr) return;
-                          setDeletingAddr(addr);
-                          try {
-                            await onDeleteAddress?.(addr);
-                          } finally {
-                            setDeletingAddr(null);
-                          }
-                        }}
-                        className={`p-2 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-all opacity-0 group-hover/addr:opacity-100 ${deletingAddr === addr ? 'opacity-100' : ''}`}
-                        title="Delete Address"
-                      >
-                        {deletingAddr === addr ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                        )}
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -300,17 +261,6 @@ const HeroAddress = ({
             )}
           </div>
 
-          <div className="mt-8 pt-8 border-t border-white/5 flex flex-wrap items-center justify-center gap-4 sm:gap-6">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-              <Globe className="w-3 h-3" />
-              {selectedDomain}
-            </div>
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
-              <Zap className="w-3 h-3 text-[var(--color-brand-orange)]" />
-              SSL/HOLO-ENCRYPTED
-            </div>
-          </div>
         </div>
       </div>
     </motion.div>

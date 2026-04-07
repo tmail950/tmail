@@ -135,28 +135,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log("AUTH: Termination sequence initiated...");
       
-      // 1. Preserve account history before purging
+      // 1. Preserve account history & profiles
       const savedAccounts = localStorage.getItem('TMAIL.PK_saved_accounts');
       const guestHistory = localStorage.getItem('TMAIL.PK_guest_history');
       const profiles = localStorage.getItem('TMAIL.PK_profiles');
 
-      // 2. Purge local memory caches
-      console.log("AUTH: Purging local memory caches...");
-      localStorage.clear();
-      sessionStorage.clear();
-
-      // 3. Restore account history so user can switch back
-      if (savedAccounts) localStorage.setItem('TMAIL.PK_saved_accounts', savedAccounts);
-      if (guestHistory) localStorage.setItem('TMAIL.PK_guest_history', guestHistory);
-      if (profiles) localStorage.setItem('TMAIL.PK_profiles', profiles);
-
-      // 4. Redirect to server-side signout endpoint (this clears cookies & redirects to /login)
-      console.log("AUTH: Executing server-side termination...");
-      const target = logoutNext ? `/api/auth/signout?next=${encodeURIComponent(logoutNext)}` : '/api/auth/signout';
-      window.location.href = target;
+      // 2. Clear ONLY session-specific keys to avoid purging other profiles
+      const tabId = sessionStorage.getItem("TMAIL.PK_tab_id");
+      if (tabId) {
+        localStorage.removeItem(`TMAIL.PK_active_email_${tabId}`);
+        localStorage.removeItem(`TMAIL.PK_guest_password_${tabId}`);
+        localStorage.removeItem(`TMAIL.PK_guest_created_at_${tabId}`);
+      }
       
-      // 5. Optional client-side cleanup if redirect takes time
-      supabase.auth.signOut().catch(() => {});
+      localStorage.removeItem("TMAIL.PK_active_email");
+      localStorage.removeItem("TMAIL.PK_guest_password");
+      localStorage.removeItem("TMAIL.PK_guest_activated");
+      
+      // 3. Clear Supabase session tokens from localStorage/cookies
+      await supabase.auth.signOut({ scope: 'local' });
+
+      // 4. Redirect to home for Guest experience
+      window.location.href = '/?logout=success';
       
     } catch (error) {
       console.error('AUTH: Critical termination failure:', error);

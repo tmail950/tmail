@@ -23,6 +23,9 @@ export default function AdminSettings() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [activeTab, setActiveTab] = useState<'settings' | 'resets'>('settings')
+  const [resetRequests, setResetRequests] = useState<any[]>([])
+  const [resetingId, setResetingId] = useState<string | null>(null)
 
   // Master email change flow
   const [showEmailChange, setShowEmailChange] = useState(false)
@@ -56,6 +59,11 @@ export default function AdminSettings() {
     try {
       const data = await domainService.getSettings()
       setSettings(data)
+      
+      // Also fetch reset requests (simulated for now, or from a table if we add it)
+      // For now, let's assume we have a 'reset_requests' table
+      const { data: resets } = await supabase.from('reset_requests').select('*').order('created_at', { ascending: false });
+      setResetRequests(resets || [])
     } catch (e) {
       console.error(e)
     } finally {
@@ -124,6 +132,27 @@ export default function AdminSettings() {
     }
   }
 
+  const handleResetPassword = async (email: string, id: string) => {
+    setResetingId(id)
+    try {
+      const newPass = Math.random().toString(36).slice(-8)
+      const res = await fetch('/api/admin/reset-user-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, newPassword: newPass, requestId: id })
+      })
+      
+      if (!res.ok) throw new Error((await res.json()).error)
+      
+      setMessage({ type: 'success', text: `Password reset to: ${newPass}. Please share this with the user.` })
+      fetchSettings()
+    } catch (e: any) {
+      setMessage({ type: 'error', text: e.message })
+    } finally {
+      setResetingId(null)
+    }
+  }
+
   if (!isAdmin || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#050505]">
@@ -149,6 +178,26 @@ export default function AdminSettings() {
             </h1>
           </div>
 
+          <div className="flex items-center gap-2 px-1 py-1 rounded-2xl bg-white/5 border border-white/5">
+            <button 
+              onClick={() => setActiveTab('settings')}
+              className={`px-6 py-3 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all ${activeTab === 'settings' ? 'bg-red-500 text-white shadow-lg shadow-red-900/40' : 'text-gray-500 hover:text-white'}`}
+            >
+              Settings
+            </button>
+            <button 
+              onClick={() => setActiveTab('resets')}
+              className={`px-6 py-3 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all ${activeTab === 'resets' ? 'bg-red-500 text-white shadow-lg shadow-red-900/40 relative' : 'text-gray-500 hover:text-white'}`}
+            >
+              Reset Requests
+              {resetRequests.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-white text-red-600 rounded-full flex items-center justify-center text-[8px] font-black italic">
+                  {resetRequests.length}
+                </span>
+              )}
+            </button>
+          </div>
+
           <button 
             onClick={handleLogout}
             className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-red-500/50 transition-all font-black uppercase text-[10px] tracking-widest"
@@ -161,74 +210,111 @@ export default function AdminSettings() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Configuration */}
           <div className="lg:col-span-2 space-y-6">
-            <section className="p-8 rounded-[40px] bg-[#0A0A0A] border border-white/5 shadow-2xl space-y-8">
-              <div className="flex items-center gap-3 pb-4 border-b border-white/5">
-                <Settings className="w-5 h-5 text-red-500" />
-                <h2 className="text-sm font-black text-white uppercase tracking-widest">Global Configuration</h2>
-              </div>
+            {activeTab === 'settings' ? (
+              <section className="p-8 rounded-[40px] bg-[#0A0A0A] border border-white/5 shadow-2xl space-y-8">
+                <div className="flex items-center gap-3 pb-4 border-b border-white/5">
+                  <Settings className="w-5 h-5 text-red-500" />
+                  <h2 className="text-sm font-black text-white uppercase tracking-widest">Global Configuration</h2>
+                </div>
 
-              <div className="space-y-6">
-                 {/* Master Admin Email */}
-                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                    <Mail className="w-3 h-3" /> Master Admin Email
-                  </label>
-                  <div className="flex items-center gap-3">
+                <div className="space-y-6">
+                  {/* Master Admin Email */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                      <Mail className="w-3 h-3" /> Master Admin Email
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="email"
+                        value={settings.admin_email || ''}
+                        readOnly
+                        className="flex-1 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 outline-none text-white font-mono text-sm cursor-not-allowed opacity-60"
+                      />
+                      <button
+                        onClick={() => setShowEmailChange(true)}
+                        className="px-4 py-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest border border-red-500/20 transition-all whitespace-nowrap"
+                      >
+                        Update Master Credentials
+                      </button>
+                    </div>
+                    <p className="text-[9px] text-gray-600 font-medium italic">Directly update the system's root identification. Changes take effect on next login.</p>
+                  </div>
+
+                  {/* Support Email */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                      <RefreshCw className="w-3 h-3" /> Public Support Email
+                    </label>
                     <input
                       type="email"
-                      value={settings.admin_email || ''}
-                      readOnly
-                      className="flex-1 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 outline-none text-white font-mono text-sm cursor-not-allowed opacity-60"
+                      value={settings.support_email || ''}
+                      onChange={(e) => handleUpdateSetting('support_email', e.target.value)}
+                      placeholder="support@domain.com"
+                      className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-white/20 transition-all outline-none text-white text-sm"
                     />
-                    <button
-                      onClick={() => setShowEmailChange(true)}
-                      className="px-4 py-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest border border-red-500/20 transition-all whitespace-nowrap"
-                    >
-                      Update Master Credentials
-                    </button>
                   </div>
-                  <p className="text-[9px] text-gray-600 font-medium italic">Directly update the system's root identification. Changes take effect on next login.</p>
+
+                  {/* Site Name / Copy */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                      <LogOut className="w-3 h-3" /> Copyright Text
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.copyright_text || ''}
+                      onChange={(e) => handleUpdateSetting('copyright_text', e.target.value)}
+                      className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-white/20 transition-all outline-none text-white text-sm"
+                    />
+                  </div>
                 </div>
 
-                {/* Support Email */}
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                    <RefreshCw className="w-3 h-3" /> Public Support Email
-                  </label>
-                  <input
-                    type="email"
-                    value={settings.support_email || ''}
-                    onChange={(e) => handleUpdateSetting('support_email', e.target.value)}
-                    placeholder="support@domain.com"
-                    className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-white/20 transition-all outline-none text-white text-sm"
-                  />
+                <div className="pt-8">
+                  <button
+                    onClick={saveSettings}
+                    disabled={saving}
+                    className="w-full flex items-center justify-center gap-3 py-5 rounded-3xl bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-[0.2em] text-[11px] shadow-xl shadow-red-900/20 active:scale-[0.98] transition-all disabled:opacity-50"
+                  >
+                    {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                    Deploy Policy Changes
+                  </button>
+                </div>
+              </section>
+            ) : (
+              <section className="p-8 rounded-[40px] bg-[#0A0A0A] border border-white/5 shadow-2xl space-y-8 min-h-[400px]">
+                <div className="flex items-center gap-3 pb-4 border-b border-white/5">
+                  <Lock className="w-5 h-5 text-red-500" />
+                  <h2 className="text-sm font-black text-white uppercase tracking-widest">Password Reset Requests</h2>
                 </div>
 
-                {/* Site Name / Copy */}
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                    <LogOut className="w-3 h-3" /> Copyright Text
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.copyright_text || ''}
-                    onChange={(e) => handleUpdateSetting('copyright_text', e.target.value)}
-                    className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-white/20 transition-all outline-none text-white text-sm"
-                  />
+                <div className="space-y-4">
+                  {resetRequests.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 opacity-30">
+                      <Shield className="w-12 h-12 mb-4" />
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">No Pending Requests</p>
+                    </div>
+                  ) : (
+                    resetRequests.map((req) => (
+                      <div key={req.id} className="p-6 rounded-3xl bg-white/5 border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <p className="text-white font-bold">{req.email}</p>
+                          <p className="text-[9px] text-gray-500 uppercase tracking-widest font-black">
+                            Requested {new Date(req.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleResetPassword(req.email, req.id)}
+                          disabled={resetingId === req.id}
+                          className="px-6 py-3 rounded-2xl bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 transition-all font-black uppercase text-[10px] tracking-widest flex items-center gap-2"
+                        >
+                          {resetingId === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                          Perform Reset
+                        </button>
+                      </div>
+                    ))
+                  )}
                 </div>
-              </div>
-
-              <div className="pt-8">
-                <button
-                  onClick={saveSettings}
-                  disabled={saving}
-                  className="w-full flex items-center justify-center gap-3 py-5 rounded-3xl bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-[0.2em] text-[11px] shadow-xl shadow-red-900/20 active:scale-[0.98] transition-all disabled:opacity-50"
-                >
-                  {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                  Deploy Policy Changes
-                </button>
-              </div>
-            </section>
+              </section>
+            )}
           </div>
 
           {/* Sidebar / Quick Stats/ Security */}

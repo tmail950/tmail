@@ -10,8 +10,22 @@ export async function POST(request: Request) {
     }
 
     const supabase = createAdminClient()
+    
+    // 1. Block signup if email is already a guest mailbox
+    const { data: guestMail } = await supabase
+      .from('guest_mailboxes')
+      .select('email_address')
+      .eq('email_address', email)
+      .maybeSingle();
 
-    // 1. Create the user with email_confirm: true
+    if (guestMail) {
+      return NextResponse.json({ 
+        error: 'This email is already in use. Please use the Login page to sign in.',
+        code: 'GUEST_EXISTS'
+      }, { status: 403 });
+    }
+
+    // 2. Create the user with email_confirm: true
     const { data: userData, error: signupError } = await supabase.auth.admin.createUser({
       email,
       password,
