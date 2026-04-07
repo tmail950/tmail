@@ -16,27 +16,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!sender || !recipient) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    // 1. Clean recipient address (handle "Name <email@domain.com>")
+    let cleanRecipient = recipient.toLowerCase().trim();
+    const emailMatch = cleanRecipient.match(/<(.+@.+)>/);
+    if (emailMatch) {
+      cleanRecipient = emailMatch[1].toLowerCase().trim();
     }
 
-    const { error } = await supabaseAdmin
+    console.log(`INGEST: Receiving email for [${cleanRecipient}] from [${sender}]`);
+
+    const { error: insertError } = await supabaseAdmin
       .from('emails')
       .insert({
         sender,
         subject: subject || '(No Subject)',
-        recipient_address: recipient.toLowerCase().trim(),
-        body_text,
-        body_html,
+        recipient_address: cleanRecipient,
+        body_text: body_text || '',
+        body_html: body_html || '',
         received_at: new Date().toISOString()
       });
 
-    if (error) {
-      throw error;
+    if (insertError) {
+      console.error(`INGEST: Database insert error: ${insertError.message}`);
+      throw insertError;
     }
 
+    console.log(`INGEST: Successfully saved email to database for [${cleanRecipient}]`);
     return NextResponse.json({ success: true, message: 'Email ingested successfully' });
   } catch (error: any) {
+    console.error(`INGEST: API Error: ${error.message}`);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

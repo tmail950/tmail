@@ -60,7 +60,8 @@ export async function POST(request: Request) {
             verification_token: verificationToken,
             user_id: session.user.id,
             admin_approval: 'pending',
-            cloudflare_status: 'pending'
+            cloudflare_status: 'pending',
+            is_verified: false
           }
         ])
         .select()
@@ -110,7 +111,8 @@ export async function POST(request: Request) {
           user_id: session.user.id,
           cloudflare_zone_id: zone.id,
           cloudflare_nameservers: zone.name_servers,
-          cloudflare_status: 'pending',
+          cloudflare_status: zone.status === 'active' ? 'active' : 'pending',
+          is_verified: zone.status === 'active',
           admin_approval: 'approved'
         }
       ])
@@ -140,7 +142,10 @@ export async function POST(request: Request) {
         // Update DB status to active since we just successfully provisioned it
         await supabase
           .from('user_domains')
-          .update({ cloudflare_status: 'active' })
+          .update({ 
+            cloudflare_status: 'active',
+            is_verified: true 
+          })
           .eq('id', domain.id);
           
         console.log(`DOMAIN SETUP: Automation finalized for [${cleanDomain}]`);
