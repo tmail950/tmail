@@ -409,40 +409,42 @@ export default function Home() {
   }, [authLoading, fetchDomains]);
 
   useEffect(() => {
-    if (user && !authLoading) {
+    if (!authLoading) {
       fetchUserEmails();
 
-      // MIGRATION LOGIC: One-time adoption of guest history into account
-      const hasMigrated = sessionStorage.getItem("TMAIL.PK_migrated");
-      const guestHistoryStr = localStorage.getItem("TMAIL.PK_guest_history");
-      
-      if (!hasMigrated && guestHistoryStr) {
-        try {
-          const guestHistory = JSON.parse(guestHistoryStr);
-          if (guestHistory.length > 0) {
-            console.log("MIGRATION: Starting guest-to-account migration...");
-            domainService.migrateGuestEmails(user.id, guestHistory).then((migratedAddrs) => {
-              if (migratedAddrs.length > 0) {
-                console.log(`MIGRATION: Successfully migrated ${migratedAddrs.length} emails.`);
-                fetchUserEmails(); // Refresh list after migration
-                
-                // Selective cleanup: Only remove migrated items from guest history
-                const remaining = guestHistory.filter((item: any) => {
-                  const addr = (typeof item === "string" ? item : item.email_address)?.toLowerCase()?.trim();
-                  return !migratedAddrs.includes(addr);
-                });
-                
-                if (remaining.length === 0) {
-                  localStorage.removeItem("TMAIL.PK_guest_history");
-                } else {
-                  localStorage.setItem("TMAIL.PK_guest_history", JSON.stringify(remaining));
+      if (user) {
+        // MIGRATION LOGIC: One-time adoption of guest history into account
+        const hasMigrated = sessionStorage.getItem("TMAIL.PK_migrated");
+        const guestHistoryStr = localStorage.getItem("TMAIL.PK_guest_history");
+        
+        if (!hasMigrated && guestHistoryStr) {
+          try {
+            const guestHistory = JSON.parse(guestHistoryStr);
+            if (guestHistory.length > 0) {
+              console.log("MIGRATION: Starting guest-to-account migration...");
+              domainService.migrateGuestEmails(user.id, guestHistory).then((migratedAddrs) => {
+                if (migratedAddrs.length > 0) {
+                  console.log(`MIGRATION: Successfully migrated ${migratedAddrs.length} emails.`);
+                  fetchUserEmails(); // Refresh list after migration
+                  
+                  // Selective cleanup: Only remove migrated items from guest history
+                  const remaining = guestHistory.filter((item: any) => {
+                    const addr = (typeof item === "string" ? item : item.email_address)?.toLowerCase()?.trim();
+                    return !migratedAddrs.includes(addr);
+                  });
+                  
+                  if (remaining.length === 0) {
+                    localStorage.removeItem("TMAIL.PK_guest_history");
+                  } else {
+                    localStorage.setItem("TMAIL.PK_guest_history", JSON.stringify(remaining));
+                  }
                 }
-              }
-              sessionStorage.setItem("TMAIL.PK_migrated", "true");
-            });
+                sessionStorage.setItem("TMAIL.PK_migrated", "true");
+              });
+            }
+          } catch (e) {
+            console.error("MIGRATION: Parse error:", e);
           }
-        } catch (e) {
-          console.error("MIGRATION: Parse error:", e);
         }
       }
     }
