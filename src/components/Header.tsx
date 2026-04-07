@@ -113,7 +113,10 @@ const HeaderContent = memo(() => {
           });
 
           if (!error) { 
+            // Force the home page to land on this specific email
+            localStorage.setItem("TMAIL.PK_active_email", targetEmail);
             localStorage.setItem('TMAIL.PK_switched_manually', 'true');
+            
             await new Promise(r => setTimeout(r, 600));
             window.location.href = '/?switched=true'; 
             return; 
@@ -184,11 +187,25 @@ const HeaderContent = memo(() => {
     setIsProfileOpen(false);
     
     if (user?.email) {
-      // Shifting to next profile if available, just like the specific profile sign-out
+      // Registered user: switch to next profile or sign out completely
       handleProfileSignOut(user.email);
     } else {
+      // Guest user: purge all guest session state
       localStorage.removeItem('TMAIL.PK_is_premium_access');
+      localStorage.removeItem('TMAIL.PK_active_email');
+      localStorage.removeItem('TMAIL.PK_last_confirmed_email');
+      localStorage.removeItem('TMAIL.PK_guest_activated');
+      
+      const tabId = localStorage.getItem('TMAIL.PK_tab_id');
+      if (tabId) {
+        localStorage.removeItem(`TMAIL.PK_prefix_${tabId}`);
+        localStorage.removeItem(`TMAIL.PK_active_email_${tabId}`);
+        localStorage.removeItem(`TMAIL.PK_guest_password_${tabId}`);
+      }
+      localStorage.removeItem('TMAIL.PK_switched_manually');
+
       await signOut();
+      window.location.reload(); // Hard reload to fresh state
     }
   };
 

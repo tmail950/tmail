@@ -59,7 +59,12 @@ export function useEmails(recipientAddress: string | null) {
         },
         (payload: any) => {
           if (isMounted) {
-            setEmails((prev) => [payload.new as Email, ...prev]);
+            setEmails((prev) => {
+              // Deduplication check: only add if the email ID is not already in the list
+              const isDuplicate = prev.some(e => e.id === payload.new.id);
+              if (isDuplicate) return prev;
+              return [payload.new as Email, ...prev];
+            });
           }
         }
       )

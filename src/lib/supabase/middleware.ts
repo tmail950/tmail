@@ -108,7 +108,10 @@ export async function updateSession(request: NextRequest) {
   }
 
   // 2. If user IS authenticated and trying to access login, redirect to dashboard (/)
-  if (user && isLoginPath) {
+  // EXCEPT if they are explicitly trying to sign up for a NEW profile (Add Profile flow)
+  const isAddingProfile = request.nextUrl.searchParams.get('signup') === 'true'
+  
+  if (user && isLoginPath && !isAddingProfile) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     

@@ -37,6 +37,9 @@ function decodeQuotedPrintable(str: string): string {
 function extractBody(raw: string | null | undefined): string {
   if (!raw) return '';
   
+  // High-level Cleanup: If the worker already did its job, raw is clean.
+  // We only run this logic for legacy raw-dump emails already in the DB.
+  
   // Find the header/body separator (double newline)
   const doubleLf = raw.indexOf('\n\n');
   const doubleCrlf = raw.indexOf('\r\n\r\n');
@@ -50,33 +53,22 @@ function extractBody(raw: string | null | undefined): string {
     bodyStart = doubleCrlf;
   }
   
-  if (bodyStart === -1) return decodeQuotedPrintable(raw.trim());
+  let content = (bodyStart === -1) ? raw.trim() : raw.slice(bodyStart).trim();
   
-  let content = raw.slice(bodyStart).trim();
-  
-  // Handle multipart messages - try to find the HTML part if it's a raw MIME dump
+  // Handle older legacy multipart dumps if they still exist in DB
   if (content.includes('Content-Type: text/html')) {
-    const htmlPart = content.split('Content-Type: text/html')[1].split('--')[0];
-    if (htmlPart) {
-      content = htmlPart.trim();
-    }
+    const htmlPart = content.split('Content-Type: text/html')[1]?.split(/\r?\n\r?\n/)[1]?.split('--')[0];
+    if (htmlPart) content = htmlPart.trim();
   } else if (content.includes('Content-Type: text/plain')) {
-    const textPart = content.split('Content-Type: text/plain')[1].split('--')[0];
-    if (textPart) {
-      content = textPart.trim();
-    }
+    const textPart = content.split('Content-Type: text/plain')[1]?.split(/\r?\n\r?\n/)[1]?.split('--')[0];
+    if (textPart) content = textPart.trim();
   }
 
-  // Remove common MIME headers that might still be present
-  content = content.replace(/Content-Type: [^\n]+\n/gi, '');
-  content = content.replace(/Content-Transfer-Encoding: [^\n]+\n/gi, '');
-  content = content.replace(/Content-Id: [^\n]+\n/gi, '');
-  content = content.replace(/Content-Description: [^\n]+\n/gi, '');
-  content = content.replace(/Content-Disposition: [^\n]+\n/gi, '');
-  content = content.replace(/charset="?[a-zA-Z0-9-]+"?(;)?/gi, '');
-  
-  // Remove any remaining boundaries
-  content = content.replace(/--[a-zA-Z0-9'()+ ,./:?=-]+(--)?/g, '');
+  // Final sanitization of any remaining technical markers
+  content = content
+    .replace(/Content-(Type|Transfer-Encoding|Id|Description|Disposition): [^\n]+\n/gi, '')
+    .replace(/;?\s?charset="?[a-zA-Z0-9-]+"?(;)?/gi, '') // Improved to catch leading semicolon
+    .replace(/--[a-zA-Z0-9'()+ ,./:?=-]+(--)?(\s+)?/g, ''); // Improved boundary cleanup
   
   return decodeQuotedPrintable(content.trim());
 }

@@ -27,24 +27,17 @@ function LoginContent() {
   const [availableDomains, setAvailableDomains] = useState<string[]>([])
   const [prefixCopied, setPrefixCopied] = useState(false);
   const [passCopied, setPassCopied] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null)
   const supabase = createClient()
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setCurrentUser(data.user))
+  }, [])
 
   useEffect(() => {
     const isSignupFromUrl = signupParam === 'true';
     if (isSignUp !== isSignupFromUrl) {
       setIsSignUp(isSignupFromUrl);
-    }
-    
-    if (isSignupFromUrl) {
-      const savedAccounts = localStorage.getItem('TMAIL.PK_saved_accounts');
-      const guestHistory = localStorage.getItem('TMAIL.PK_guest_history');
-      const profiles = localStorage.getItem('TMAIL.PK_profiles');
-      supabase.auth.signOut().then(() => {
-        localStorage.removeItem('TMAIL.PK_guest_activated');
-        if (savedAccounts) localStorage.setItem('TMAIL.PK_saved_accounts', savedAccounts);
-        if (guestHistory) localStorage.setItem('TMAIL.PK_guest_history', guestHistory);
-        if (profiles) localStorage.setItem('TMAIL.PK_profiles', profiles);
-      });
     }
   }, [signupParam]);
 
@@ -60,12 +53,6 @@ function LoginContent() {
             setSelectedDomain(names[randomIndex]);
           }
           
-          const storedAddr = localStorage.getItem("TMAIL.PK_active_email");
-          // Remove password auto-fill
-          
-          if (storedAddr && storedAddr.includes("@")) {
-            setFullEmail(storedAddr);
-          }
           // Password field should always start empty for security
         }
       } catch (e) {
@@ -129,6 +116,7 @@ function LoginContent() {
           localStorage.setItem('TMAIL.PK_profiles', JSON.stringify(profiles.slice(0, 5)));
         } catch(e) {}
         
+        localStorage.setItem("TMAIL.PK_active_email", loginEmail);
         setMessage({ type: 'success', text: 'Signing you in...' })
         setTimeout(() => window.location.href = '/?auth=success', 500);
         return;
@@ -155,6 +143,18 @@ function LoginContent() {
           throw new Error(result.error || 'Signup failed')
         }
 
+        // Before signing into the new account, we must sign out of the current one
+        // but preserve our profile store
+        const profiles = localStorage.getItem('TMAIL.PK_profiles');
+        const savedAccounts = localStorage.getItem('TMAIL.PK_saved_accounts');
+        const guestHistory = localStorage.getItem('TMAIL.PK_guest_history');
+
+        await supabase.auth.signOut();
+
+        if (profiles) localStorage.setItem('TMAIL.PK_profiles', profiles);
+        if (savedAccounts) localStorage.setItem('TMAIL.PK_saved_accounts', savedAccounts);
+        if (guestHistory) localStorage.setItem('TMAIL.PK_guest_history', guestHistory);
+
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: loginEmail,
           password,
@@ -174,6 +174,17 @@ function LoginContent() {
 
       if (guestMailbox) {
         const email = guestMailbox.email_address;
+        
+        // Purge old session state to prevent "hybrid" email leakage (old name + new domain)
+        try {
+          await supabase.auth.signOut();
+          Object.keys(localStorage).forEach(key => {
+            if (key.includes('TMAIL.PK_prefix') || key.includes('TMAIL.PK_domain')) {
+              localStorage.removeItem(key);
+            }
+          });
+        } catch (e) {}
+
         localStorage.setItem("TMAIL.PK_active_email", email);
         localStorage.setItem("TMAIL.PK_last_confirmed_email", email);
         localStorage.setItem("TMAIL.PK_guest_activated", "true");
@@ -237,10 +248,24 @@ function LoginContent() {
             <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-white via-white to-gray-500 bg-clip-text text-transparent">
               {isForgotPassword ? 'Recover Access' : (isSignUp ? 'New Inbox' : 'Access Mail')}
             </h1>
-            <p className="text-gray-400 text-sm font-medium">
-              {isForgotPassword ? 'Enter your email to receive a secure reset link' : (isSignUp ? 'Create a new professional email' : 'Sign in to access your mail')}
-            </p>
-          </div>
+              <p className="text-gray-400 text-sm font-medium">
+                {isForgotPassword ? 'Enter your email to receive a secure reset link' : (isSignUp ? 'Create a new professional email' : 'Sign in to access your mail')}
+              </p>
+              
+              {isSignUp && currentUser && (
+                <div className="flex flex-col items-center gap-2 pt-2 animate-in fade-in slide-in-from-top-2">
+                  <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+                    Adding Profile from: <span className="text-[var(--color-brand-pink)]">{currentUser.email}</span>
+                  </p>
+                  <button 
+                    onClick={() => router.push('/')}
+                    className="text-[9px] text-gray-400 hover:text-white underline underline-offset-4 font-black uppercase tracking-widest decoration-[var(--color-brand-pink)]/50"
+                  >
+                    Back to Dashboard
+                  </button>
+                </div>
+              )}
+            </div>
 
           {isForgotPassword ? (
             <form onSubmit={handleResetPassword} className="space-y-6" autoComplete="off">
