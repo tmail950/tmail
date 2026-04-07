@@ -161,6 +161,16 @@ function LoginContent() {
         })
         if (signInError) throw signInError
 
+        // Save to switcher list
+        try {
+          const profiles = JSON.parse(localStorage.getItem('TMAIL.PK_profiles') || '[]');
+          const p = { email: loginEmail, password, type: 'account' };
+          const idx = profiles.findIndex((x: any) => x.email.toLowerCase() === p.email.toLowerCase());
+          if (idx >= 0) profiles[idx] = { ...profiles[idx], ...p };
+          else profiles.unshift(p);
+          localStorage.setItem('TMAIL.PK_profiles', JSON.stringify(profiles.slice(0, 5)));
+        } catch(e) {}
+
         setMessage({ type: 'success', text: 'Account created!' })
         setTimeout(() => window.location.href = '/?auth=success', 1000)
         return;
@@ -214,6 +224,17 @@ function LoginContent() {
 
       if (userEmail) {
         const email = userEmail.email_address;
+        
+        // Save to switcher list
+        try {
+          const profiles = JSON.parse(localStorage.getItem('TMAIL.PK_profiles') || '[]');
+          const p = { email: email, password, type: 'account' };
+          const idx = profiles.findIndex((x: any) => x.email.toLowerCase() === p.email.toLowerCase());
+          if (idx >= 0) profiles[idx] = { ...profiles[idx], ...p };
+          else profiles.unshift(p);
+          localStorage.setItem('TMAIL.PK_profiles', JSON.stringify(profiles.slice(0, 5)));
+        } catch(e) {}
+
         localStorage.setItem("TMAIL.PK_active_email", email);
         localStorage.setItem("TMAIL.PK_last_confirmed_email", email);
         localStorage.setItem("TMAIL.PK_guest_activated", "true");

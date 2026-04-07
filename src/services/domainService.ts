@@ -290,7 +290,20 @@ export const domainService = {
     console.log(`DOMAINS: Initiating reservation for ${cleanAddress} (User: ${userId})`);
     
     try {
-      // CROSS-TABLE CHECK: Ensure not in guest_mailboxes either
+      // 1. CHECK IF USER ALREADY OWNS THIS EMAIL
+      const { data: existingOwned } = await supabase
+        .from('user_emails')
+        .select('*')
+        .eq('email_address', cleanAddress)
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (existingOwned) {
+        console.log(`DOMAINS: User already owns ${cleanAddress}, returning existing record.`);
+        return existingOwned;
+      }
+
+      // 2. CROSS-TABLE CHECK: Ensure not in guest_mailboxes (unless we migrate later)
       const { data: existingGuest } = await supabase
         .from('guest_mailboxes')
         .select('email_address')
@@ -312,30 +325,35 @@ export const domainService = {
           email_address: cleanAddress,
           password: password,
           last_used_at: new Date().toISOString(),
-          is_used: true // Mark as used for strict allotment
+          is_used: true
         })
         .select();
 
       const { data, error } = await Promise.race([dbPromise, timeoutPromise]) as any;
       
       if (error) {
-        console.error(`DOMAINS: Reservation DB error for ${cleanAddress}:`, error.message);
         if (error.code === '23505') {
+          // Double check if somehow it was inserted since our last check (race condition)
+          const { data: recheck } = await supabase.from('user_emails').select('*').eq('email_address', cleanAddress).eq('user_id', userId).maybeSingle();
+          if (recheck) return recheck;
           throw new Error('This address is already taken.');
         }
+        console.error(`DOMAINS: Reservation DB error for ${cleanAddress}:`, error.message);
         throw new Error(`Database Error: ${error.message}`);
       }
       
       const record = Array.isArray(data) ? data[0] : data;
-      if (!record) {
-        console.error(`DOMAINS: No data returned for ${cleanAddress}`);
-        throw new Error('Failed to confirm reservation.');
-      }
+      if (!record) throw new Error('Failed to confirm reservation.');
 
       console.log(`DOMAINS: Successfully reserved ${cleanAddress}`);
       return record;
     } catch (err: any) {
-      console.error(`DOMAINS: Critical failure during reservation of ${cleanAddress}:`, err.message);
+      // Log as a warning instead of a red console error to prevent UI overlay
+      if (err.message.includes('already taken')) {
+        console.warn(`DOMAINS: Reservation conflict for ${cleanAddress}: ${err.message}`);
+      } else {
+        console.error(`DOMAINS: Critical failure during reservation of ${cleanAddress}:`, err.message);
+      }
       throw err;
     }
   },
@@ -443,5 +461,30 @@ export const domainService = {
   async deletePlatformDomain(id: string) {
     // Legacy method for cleanup
     return;
+  },
+
+  async migrateGuestEmails(userId: string, guestHistory: any[]): Promise<string[]> {
+    if (!guestHistory || guestHistory.length === 0) return [];
+    console.log(`DOMAINS: Migrating ${guestHistory.length} guest emails to user ${userId}`);
+    
+    const migratedAddresses: string[] = [];
+    for (const item of guestHistory) {
+      const addr = (typeof item === 'string' ? item : item.email_address)?.toLowerCase()?.trim();
+      if (!addr) continue;
+
+      try {
+        const pass = item.password || item.password_hash;
+        
+        // Use associateEmail which now handles existing owned emails gracefully
+        await this.associateEmail(userId, addr, undefined, pass);
+        migratedAddresses.push(addr);
+        
+        // Optional: Mark guest mailbox as migrated/deleted
+        await this.deleteGuestEmail(addr);
+      } catch (err) {
+        console.warn(`DOMAINS: Migration failed for ${addr}:`, err);
+      }
+    }
+    return migratedAddresses;
   }
 }

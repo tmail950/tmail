@@ -21,10 +21,13 @@ function saveProfile(p: StoredProfile) {
   const idx = cleanList.findIndex(x => x.email.toLowerCase() === p.email.toLowerCase());
   
   if (idx >= 0) {
+    // PRESERVE the password if the new update is missing it!
+    const updatedPassword = p.password || cleanList[idx].password;
+    
     cleanList[idx] = { 
       ...cleanList[idx], 
       ...p, 
-      password: p.password || cleanList[idx].password 
+      password: updatedPassword 
     };
   } else {
     cleanList.unshift(p);
@@ -35,13 +38,11 @@ function preserveProfileData() {
   return {
     profiles: localStorage.getItem('TMAIL.PK_profiles'),
     savedAccounts: localStorage.getItem('TMAIL.PK_saved_accounts'),
-    guestHistory: localStorage.getItem('TMAIL.PK_guest_history'),
   };
 }
 function restoreProfileData(data: ReturnType<typeof preserveProfileData>) {
   if (data.profiles) localStorage.setItem('TMAIL.PK_profiles', data.profiles);
   if (data.savedAccounts) localStorage.setItem('TMAIL.PK_saved_accounts', data.savedAccounts);
-  if (data.guestHistory) localStorage.setItem('TMAIL.PK_guest_history', data.guestHistory);
 }
 // ------------------------------------------
 
@@ -147,36 +148,57 @@ const HeaderContent = memo(() => {
     setIsSwitchOpen(false);
     setIsMenuOpen(false);
 
-    // Remove from profile store
-    const allProfiles = getProfiles().filter(p => p.email !== targetEmail);
-    localStorage.setItem('TMAIL.PK_profiles', JSON.stringify(allProfiles));
-    const accounts = JSON.parse(localStorage.getItem('TMAIL.PK_saved_accounts') || '[]')
-      .filter((e: string) => e !== targetEmail);
-    localStorage.setItem('TMAIL.PK_saved_accounts', JSON.stringify(accounts));
+    // 1. Remove from local profile store
+    const currentProfiles = getProfiles();
+    const updatedProfiles = currentProfiles.filter(p => 
+      p.email.toLowerCase() !== targetEmail.toLowerCase()
+    );
+    localStorage.setItem('TMAIL.PK_profiles', JSON.stringify(updatedProfiles.slice(0, 5)));
+    
+    // Also remove from saved_accounts string list
+    const saved = JSON.parse(localStorage.getItem('TMAIL.PK_saved_accounts') || '[]');
+    const filteredSaved = saved.filter((e: string) => e.toLowerCase() !== targetEmail.toLowerCase());
+    localStorage.setItem('TMAIL.PK_saved_accounts', JSON.stringify(filteredSaved));
 
-    if (targetEmail === user?.email) {
-      // Find next real account to auto-switch to
-      const nextAccount = allProfiles.find(p => p.type === 'account');
+    // 2. If we are signing out the CURRENTLY active user, we need to switch context
+    if (targetEmail.toLowerCase() === user?.email?.toLowerCase()) {
+      const nextAccount = updatedProfiles.find(p => p.type === 'account' && p.password);
+      
       if (nextAccount) {
         setIsSwitching(true);
         setSwitchTarget(nextAccount.email);
-        if (nextAccount.password) {
-          try {
-            const snap = { profiles: localStorage.getItem('TMAIL.PK_profiles'), savedAccounts: localStorage.getItem('TMAIL.PK_saved_accounts'), guestHistory: localStorage.getItem('TMAIL.PK_guest_history') };
-            await supabase.auth.signOut({ scope: 'local' });
-            if (snap.profiles) localStorage.setItem('TMAIL.PK_profiles', snap.profiles);
-            if (snap.savedAccounts) localStorage.setItem('TMAIL.PK_saved_accounts', snap.savedAccounts);
-            if (snap.guestHistory) localStorage.setItem('TMAIL.PK_guest_history', snap.guestHistory);
-            const { error } = await supabase.auth.signInWithPassword({ email: nextAccount.email, password: nextAccount.password });
-            if (!error) { window.location.href = '/?switched=true'; return; }
-          } catch {}
+        
+        try {
+          // Preserve local storage state during the Supabase sign-out/sign-in flip
+          const snap = preserveProfileData();
+          await supabase.auth.signOut();
+          restoreProfileData(snap);
+          
+          // Force the home page to land on the next account email
+          localStorage.setItem("TMAIL.PK_active_email", nextAccount.email);
+          localStorage.setItem('TMAIL.PK_switched_manually', 'true');
+
+          const { error } = await supabase.auth.signInWithPassword({ 
+            email: nextAccount.email, 
+            password: nextAccount.password! 
+          });
+          
+          if (!error) { 
+            window.location.href = '/?switched=true'; 
+            return; 
+          }
+        } catch (err) {
+          console.error("Sequential logout switch failed:", err);
         }
-        await supabase.auth.signOut({ scope: 'local' });
-        window.location.href = `/login?email=${encodeURIComponent(nextAccount.email)}`;
+        
+        // Fallback: If switch failed, go to login page with next email pre-filled
+        window.location.href = `/login?email=${encodeURIComponent(nextAccount.email)}&error=Session+expired`;
       } else {
-        await signOut();
+        // No accounts left: perform full system reset
+        await handleLogout();
       }
     } else {
+      // Just removing a background account, refresh the menu and UI
       refreshProfiles();
     }
   };
@@ -186,26 +208,28 @@ const HeaderContent = memo(() => {
     setIsMenuOpen(false);
     setIsProfileOpen(false);
     
-    if (user?.email) {
-      // Registered user: switch to next profile or sign out completely
+    // If multiple accounts exist and user clicks Logout, use the sequential logic
+    const profiles = getProfiles();
+    const otherAccounts = profiles.filter(p => p.type === 'account' && p.email !== user?.email);
+
+    if (user?.email && otherAccounts.length > 0) {
       handleProfileSignOut(user.email);
     } else {
-      // Guest user: purge all guest session state
-      localStorage.removeItem('TMAIL.PK_is_premium_access');
-      localStorage.removeItem('TMAIL.PK_active_email');
-      localStorage.removeItem('TMAIL.PK_last_confirmed_email');
-      localStorage.removeItem('TMAIL.PK_guest_activated');
+      // Guest or final account: Complete cleanup but PRESERVE guest history if it exists
+      const guestHistory = localStorage.getItem('TMAIL.PK_guest_history');
       
-      const tabId = localStorage.getItem('TMAIL.PK_tab_id');
-      if (tabId) {
-        localStorage.removeItem(`TMAIL.PK_prefix_${tabId}`);
-        localStorage.removeItem(`TMAIL.PK_active_email_${tabId}`);
-        localStorage.removeItem(`TMAIL.PK_guest_password_${tabId}`);
-      }
-      localStorage.removeItem('TMAIL.PK_switched_manually');
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('TMAIL.PK_') && key !== 'TMAIL.PK_guest_history') {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // If we preserve history, we can't do a total reset, but we clear the session markers
+      localStorage.removeItem('TMAIL.PK_profiles');
+      localStorage.removeItem('TMAIL.PK_active_email');
 
-      await signOut();
-      window.location.reload(); // Hard reload to fresh state
+      await supabase.auth.signOut();
+      window.location.href = '/?logout=total'; 
     }
   };
 

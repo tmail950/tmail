@@ -96,12 +96,54 @@ export default function Home() {
     }
   }, [user]);
 
+  const lastUserId = useRef<string | null>(null);
   const fetchUserEmails = useCallback(async () => {
-    if (!user) return;
+    if (!user?.id) {
+      // Guest logic: Merge guest history and other profiles
+      const history = JSON.parse(localStorage.getItem("TMAIL.PK_guest_history") || "[]");
+      const profiles = JSON.parse(localStorage.getItem("TMAIL.PK_profiles") || "[]");
+      
+      const combined = [...history.map((h:any) => ({ ...h, guest: true }))];
+      profiles.forEach((p:any) => {
+        if (!combined.some(c => c.email_address === p.email)) {
+          combined.push({ email_address: p.email, guest: false, password: p.password });
+        }
+      });
+      
+      setUserEmails(combined.slice(0, 9));
+      return combined;
+    }
+    
+    if (lastUserId.current !== user.id) {
+      setUserEmails([]); 
+    }
+    lastUserId.current = user.id;
+
     try {
-      const emails = await domainService.listUserEmails(user.id);
-      setUserEmails(emails || []);
-      return emails;
+      const dbEmails = await domainService.listUserEmails(user.id);
+      
+      // Merge with other profiles and YOUR OWN login identity to ensure "Universal Reserves"
+      const profiles = JSON.parse(localStorage.getItem("TMAIL.PK_profiles") || "[]");
+      const combined = [...(dbEmails || [])];
+
+      // 1. Ensure current identity is ALWAYS in the reserves list
+      const identityEmail = user.email?.toLowerCase();
+      if (identityEmail && !combined.some(c => c.email_address?.toLowerCase() === identityEmail)) {
+        combined.unshift({ email_address: identityEmail, guest: false, isIdentity: true });
+      }
+      
+      // 2. Merge other saved profiles
+      profiles.forEach((p: any) => {
+        const addr = p.email?.toLowerCase();
+        if (addr && !combined.some(c => c.email_address?.toLowerCase() === addr)) {
+          combined.push({ email_address: p.email, password: p.password, guest: false });
+        }
+      });
+
+      // Strictly enforce the limits: 9 for Pro, 4 for Guest (though this block is user-only)
+      const limit = user ? 9 : 4;
+      setUserEmails(combined.slice(0, limit));
+      return combined;
     } catch (err) {
       console.error("Error fetching user emails:", err);
       return [];
@@ -131,7 +173,8 @@ export default function Home() {
     const target = userEmails.find(e => e.email_address === newAddress);
     if (target && target.password) {
       setMailboxPassword(target.password);
-    } else {
+    } else if (!user) {
+      // Guest-only shortcut: read from local history if not logged in
       const historyJSON = localStorage.getItem("TMAIL.PK_guest_history") || "[]";
       const history = JSON.parse(historyJSON);
       const found = history.find((h: any) => h.email_address === newAddress);
@@ -190,11 +233,8 @@ export default function Home() {
         if (!history.find((h: any) => h.email_address === targetAddress)) {
           history.unshift({ email_address: targetAddress, password: targetPassword });
           
-          const isPremium = !!user;
-          const limit = isPremium ? 9 : 4;
-          
-          if (history.length > limit) {
-             history = history.slice(0, limit);
+          if (history.length > 4) {
+             history = history.slice(0, 4);
           }
           localStorage.setItem("TMAIL.PK_guest_history", JSON.stringify(history));
         }
@@ -231,29 +271,49 @@ export default function Home() {
     setShowSuccess(false);
 
     try {
-      const isAlreadyOwned = userEmails.some(e => e.email_address === targetAddress);
-      if (isAlreadyOwned) {
+      // 1. Initial local check: Is it already in our state list?
+      const isAlreadyOwned = userEmails.some(e => e.email_address?.toLowerCase() === targetAddress.toLowerCase());
+      const isIdentity = targetAddress.toLowerCase() === user.email?.toLowerCase();
+      
+      if (isAlreadyOwned || isIdentity) {
+        // If it's identity, we try to ensure it's in DB but don't block the UI
+        if (isIdentity && !isAlreadyOwned) {
+           domainService.associateEmail(user.id, targetAddress, undefined, targetPassword).catch(e => {
+             console.warn("Identity auto-save background failed (likely limit related):", e.message);
+           });
+        }
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 2000);
         setIsSavingEmail(false);
         return;
       }
 
+      // 2. Database associate attempt
       const newEmail = await domainService.associateEmail(user.id, targetAddress, undefined, targetPassword);
-      // Immediately move the newly created/activated email to the top of the reserve list
+      
       setUserEmails(prev => {
         const filtered = prev.filter(e => e.email_address !== newEmail.email_address);
         return [newEmail, ...filtered];
       });
+      
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
       setIsSavingEmail(false);
-      // Clear manual switch flag after successful save to allow standard sync
-      setTimeout(() => localStorage.removeItem('TMAIL.PK_switched_manually'), 2000);
+      
+      // Removed: Clearing manual switch flag. This should stick until a new generation or logout.
     } catch (err: any) {
       setIsSavingEmail(false);
-      const msg = err.message || "";
-      setSaveError(msg || "Failed to activate. Please try again.");
+      
+      // 3. Graceful error handling for "Already Taken" or "Duplicate"
+      const errorMsg = err.message || "";
+      if (errorMsg.includes('already taken') || errorMsg.includes('duplicate key') || errorMsg.includes('23505') || errorMsg.includes('Reservation DB error')) {
+        console.warn(`DOMAINS: Gracefully handled reservation retry for ${targetAddress}.`);
+        // If it's already taken, we just treat it as "Saved" for the UI to prevent a crash
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 2000);
+      } else {
+        setSaveError(errorMsg);
+      }
     }
   }, [user, address, isSavingEmail, mailboxPassword, userEmails]);
 
@@ -351,6 +411,40 @@ export default function Home() {
   useEffect(() => {
     if (user && !authLoading) {
       fetchUserEmails();
+
+      // MIGRATION LOGIC: One-time adoption of guest history into account
+      const hasMigrated = sessionStorage.getItem("TMAIL.PK_migrated");
+      const guestHistoryStr = localStorage.getItem("TMAIL.PK_guest_history");
+      
+      if (!hasMigrated && guestHistoryStr) {
+        try {
+          const guestHistory = JSON.parse(guestHistoryStr);
+          if (guestHistory.length > 0) {
+            console.log("MIGRATION: Starting guest-to-account migration...");
+            domainService.migrateGuestEmails(user.id, guestHistory).then((migratedAddrs) => {
+              if (migratedAddrs.length > 0) {
+                console.log(`MIGRATION: Successfully migrated ${migratedAddrs.length} emails.`);
+                fetchUserEmails(); // Refresh list after migration
+                
+                // Selective cleanup: Only remove migrated items from guest history
+                const remaining = guestHistory.filter((item: any) => {
+                  const addr = (typeof item === "string" ? item : item.email_address)?.toLowerCase()?.trim();
+                  return !migratedAddrs.includes(addr);
+                });
+                
+                if (remaining.length === 0) {
+                  localStorage.removeItem("TMAIL.PK_guest_history");
+                } else {
+                  localStorage.setItem("TMAIL.PK_guest_history", JSON.stringify(remaining));
+                }
+              }
+              sessionStorage.setItem("TMAIL.PK_migrated", "true");
+            });
+          }
+        } catch (e) {
+          console.error("MIGRATION: Parse error:", e);
+        }
+      }
     }
   }, [user, authLoading, fetchUserEmails]);
 
@@ -367,7 +461,18 @@ export default function Home() {
         setSelectedDomain(d);
         setIsAuto(false);
       }
-    } else if (userEmails.length === 0 && user?.email && !address) {
+    } else if (!isSwitchedManually && userEmails.length > 0 && user?.email) {
+       // If we just logged in and have NO active address chosen, prefer the IDENTITY email
+       const identityEmail = user.email.toLowerCase();
+       const hasIdentityInReserves = userEmails.some(e => e.email_address?.toLowerCase() === identityEmail);
+       
+       if (hasIdentityInReserves && address !== identityEmail && !address) {
+         const [p, d] = identityEmail.split('@');
+         setPrefix(p.toLowerCase().replace(/[^a-z0-9]/g, ''));
+         setSelectedDomain(d);
+         setIsAuto(false);
+       }
+    } else if (!isSwitchedManually && userEmails.length === 0 && user?.email && !address) {
       const loginPrefix = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
       const loginDom = user.email.split('@')[1];
       setPrefix(loginPrefix);
@@ -396,6 +501,21 @@ export default function Home() {
 
     // Priority 1: Recent login or explicit intent from global storage
     const globalActive = localStorage.getItem("TMAIL.PK_active_email");
+
+    // Anti-Deadlock: If we are at the limit and current address is not in reserves, 
+    // automatically switch to the first valid reserve.
+    if (user && userEmails.length >= 9 && hasInitialized.current) {
+      const currentAddr = globalActive || storedAddress || address;
+      const isReserved = userEmails.some(e => e.email_address?.toLowerCase() === currentAddr?.toLowerCase());
+      
+      if (!isReserved && userEmails[0]?.email_address) {
+        console.log("LIMIT: User at 9/9, auto-switching to first reserve to avoid deadlock.");
+        handleSwitchEmail(userEmails[0].email_address);
+        hasInitialized.current = true;
+        return;
+      }
+    }
+
     let effectiveAddress = storedAddress;
 
     if (globalActive && globalActive.includes("@")) {
@@ -418,13 +538,18 @@ export default function Home() {
             setIsAuto(false);
             
             // Check if we already have a password for this one
-            const history = JSON.parse(localStorage.getItem("TMAIL.PK_guest_history") || "[]");
-            const existing = history.find((h: any) => h.email_address === loginTarget);
-            const defaultPass = existing?.password || generateRandomPassword();
+            // If no DB password found yet, use a new randomized one
+            const defaultPass = generateRandomPassword();
             
             setMailboxPassword(defaultPass);
+            // Check if we actually need to save this (if it's not already in userEmails)
             setTimeout(() => {
-              handleSaveEmail(true, loginTarget, defaultPass);
+              const currentEmails = JSON.parse(JSON.stringify(userEmails)); 
+              const isAlreadyOwned = currentEmails.some((e: any) => e.email_address?.toLowerCase() === loginTarget.toLowerCase());
+              
+              if (!isAlreadyOwned) {
+                handleSaveEmail(true, loginTarget, defaultPass);
+              }
               localStorage.removeItem("TMAIL.PK_active_email"); // Clear global after sync
             }, 1000);
             hasInitialized.current = true;
@@ -444,9 +569,7 @@ export default function Home() {
         const storedPass = localStorage.getItem(passwordKey) || localStorage.getItem("TMAIL.PK_guest_password");
         if (storedPass) setMailboxPassword(storedPass);
         
-        // Populate guest emails list (Reserves) immediately for guest login
-        const history = JSON.parse(localStorage.getItem("TMAIL.PK_guest_history") || "[]");
-        setUserEmails(history.map((h: any) => ({ ...h, guest: true })).slice(0, 4));
+        // Removed: Manual setUserEmails call here. fetchUserEmails() will handle this centrally.
 
         // After syncing to state, we can clear the global one so next tab doesn't steal it incorrectly
         setTimeout(() => localStorage.removeItem("TMAIL.PK_active_email"), 2000);
@@ -503,24 +626,12 @@ export default function Home() {
       setPrefix(storedPrefix.toLowerCase().replace(/[^a-z0-9]/g, ''));
       setSelectedDomain(storedDomain || storedDom);
       setIsAuto(false);
+      
       const storedPass = localStorage.getItem(passwordKey);
       if (storedPass) setMailboxPassword(storedPass);
       
-      if (!user) {
-        const history = JSON.parse(localStorage.getItem("TMAIL.PK_guest_history") || "[]");
-        setUserEmails(prev => {
-          const isPremium = typeof window !== 'undefined' && localStorage.getItem('TMAIL.PK_is_premium_access') === 'true';
-          const limit = isPremium ? 9 : 4;
-          const currentHistory = history.map((h: any) => ({ ...h, guest: true }));
-          
-          // Ensure the current active address is at the top of the reserves if it's not already there
-          if (storedAddress && !currentHistory.some((e:any) => e.email_address === storedAddress)) {
-             const activeEntry = { email_address: storedAddress, guest: true, password: storedPass };
-             return [activeEntry, ...currentHistory].slice(0, limit);
-          }
-          return currentHistory.slice(0, limit);
-        });
-      }
+      // Removed: Manual setUserEmails call here. fetchUserEmails() will handle this centrally.
+      
       hasInitialized.current = true;
     }
   }, [authLoading, isDomainLoading, user, userEmails.length, verifiedDomains, tabId, handleAutoGenerate]);
@@ -574,6 +685,12 @@ export default function Home() {
     }
     // isFirstLoad restriction removed to enable immediate mailbox activation for new users.
     const timer = setTimeout(() => {
+      // Final limit check before auto-save
+      if (user && userEmails.length >= 9) {
+        console.warn("LIMIT: Skipping auto-save because user is at 9/9");
+        return;
+      }
+      
       lastActivatedAddr.current = currentAddr;
       handleSaveEmail(true);
     }, 1000);
@@ -595,7 +712,11 @@ export default function Home() {
     }
   }, [mailboxPassword, tabId]);
 
-  const isAddressSaved = useMemo(() => userEmails.some(e => e.email_address === address), [userEmails, address]);
+  const isAddressSaved = useMemo(() => {
+    if (address.toLowerCase() === user?.email?.toLowerCase()) return true; // Identity is always "saved"
+    return userEmails.some(e => e.email_address === address);
+  }, [userEmails, address, user]);
+  
   const { emails, isLoading } = useEmails(isAddressSaved ? address : null);
   const selectedEmail = emails.find((e) => e.id === selectedEmailId) || null;
   const savedAddressList = useMemo(() => userEmails.map(e => e.email_address), [userEmails]);
@@ -663,6 +784,7 @@ export default function Home() {
             onPasswordChange={setMailboxPassword}
             sessionExpired={sessionExpired}
             onSimulate={handleSimulateEmail}
+            isIdentity={address.toLowerCase() === user?.email?.toLowerCase()}
           />
         </div>
 

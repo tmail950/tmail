@@ -26,6 +26,7 @@ interface HeroAddressProps {
   onPasswordChange?: (val: string) => void;
   sessionExpired?: boolean;
   onSimulate?: () => void;
+  isIdentity?: boolean;
 }
 
 const HeroAddress = ({
@@ -50,7 +51,8 @@ const HeroAddress = ({
   password = "",
   onPasswordChange,
   sessionExpired = false,
-  onSimulate
+  onSimulate,
+  isIdentity = false
 }: HeroAddressProps) => {
   const [copied, setCopied] = useState(false);
   const [prefixCopied, setPrefixCopied] = useState(false);
@@ -180,7 +182,7 @@ const HeroAddress = ({
               </div>
             </div>
 
-            {error && (
+            {error && !isIdentity && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
