@@ -13,6 +13,7 @@ interface HeroAddressProps {
   verifiedDomains: DomainRecord[];
   onDomainChange: (val: string) => void;
   onSaveAddress?: () => void;
+  onDeleteAddress?: (addr: string) => void;
   onSwitchAddress?: (addr: string) => void;
   savedAddresses?: string[];
   isSaving?: boolean;
