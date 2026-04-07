@@ -236,7 +236,6 @@ const HeroAddress = ({
                 </button>
               )}
             </div>
-
             {/* Saved Addresses Quick Switcher */}
             {savedAddresses.filter(addr => addr !== emailAddress).length > 0 && (
               <div className="flex flex-col items-center gap-4 mt-4 py-6 border-t border-white/5">
@@ -244,8 +243,10 @@ const HeroAddress = ({
                   RESERVES EMAILS ({savedAddresses.filter(addr => addr !== emailAddress).length})
                 </span>
                 <div className="flex flex-wrap justify-center gap-2 max-w-2xl px-4">
-                  {savedAddresses.filter(addr => addr !== emailAddress).map((addr) => (
-                    <div key={addr} className="flex items-center gap-1 group/addr">
+                  {savedAddresses
+                    .filter(addr => addr !== emailAddress && addr.includes('@'))
+                    .map((addr) => (
+                      <div key={addr} className="flex items-center gap-1 group/addr">
                       <button
                         onClick={() => onSwitchAddress?.(addr)}
                         className={`px-4 py-2 rounded-xl text-[10px] font-bold transition-all border ${addr === emailAddress

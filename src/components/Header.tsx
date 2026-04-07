@@ -113,32 +113,30 @@ const HeaderContent = memo(() => {
           });
 
           if (!error) { 
+            localStorage.setItem('TMAIL.PK_switched_manually', 'true');
             await new Promise(r => setTimeout(r, 600));
             window.location.href = '/?switched=true'; 
             return; 
           } else {
             console.error("Supabase Switch Auth Error:", error);
-            alert(`Switch Failed: ${error.message}\nIf you switched too fast, please wait a minute.`);
             setIsSwitching(false);
-            if (error.message.toLowerCase().includes('credential')) {
-               window.location.href = `/login?email=${encodeURIComponent(targetEmail)}&error=${encodeURIComponent(error.message)}`;
-            }
+            window.location.href = `/login?email=${encodeURIComponent(targetEmail)}&error=${encodeURIComponent(error.message)}`;
             return;
           }
         } catch (e: any) {
            console.error("Switch catch Error:", e);
-           alert(`Error: ${e?.message}`);
            setIsSwitching(false);
            return;
         }
       }
     }
 
-    // No password saved
+    // No password saved or other failure
     const data = preserveProfileData();
+    localStorage.setItem('TMAIL.PK_switched_manually', 'true');
     await supabase.auth.signOut({ scope: 'local' });
     restoreProfileData(data);
-    window.location.href = `/login?email=${encodeURIComponent(targetEmail)}&error=${encodeURIComponent('Please re-enter your password to reauthorize this profile.')}`;
+    window.location.href = `/login?email=${encodeURIComponent(targetEmail)}&error=${encodeURIComponent('Please re-enter your password to switch.')}`;
   };
 
   // Individual profile sign-out: remove from list, auto-switch to next account
@@ -299,7 +297,7 @@ const HeaderContent = memo(() => {
                   <button
                     onClick={() => {
                       saveCurrentAccount();
-                      signOut('/login?signup=true');
+                      router.push('/login?signup=true');
                     }}
                     className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95 border border-white/5"
                   >
@@ -383,7 +381,7 @@ const HeaderContent = memo(() => {
                     <div className="grid grid-cols-1 gap-3">
                       {profiles.length < 5 && (
                       <button
-                        onClick={() => { saveCurrentAccount(); setIsMenuOpen(false); signOut('/login?signup=true'); }}
+                        onClick={() => { saveCurrentAccount(); setIsMenuOpen(false); router.push('/login?signup=true'); }}
                         className="flex items-center gap-3 w-full p-4 rounded-2xl bg-white text-black text-[10px] font-black uppercase tracking-widest"
                       >
                         <PlusCircle className="w-4 h-4" />

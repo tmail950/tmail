@@ -117,7 +117,7 @@ export default function Home() {
 
   const handleSwitchEmail = useCallback((newAddress: string) => {
     const [newPrefix, newDom] = newAddress.split('@');
-    setPrefix(newPrefix);
+    setPrefix(newPrefix.toLowerCase().replace(/[^a-z0-9]/g, ''));
     setSelectedDomain(newDom);
     
     // Update local list order to keep switched email at top
@@ -360,22 +360,25 @@ export default function Home() {
 
   useEffect(() => {
     if (!user || authLoading) return;
-    if (userEmails.length > 0) {
+    
+    const isSwitchedManually = localStorage.getItem('TMAIL.PK_switched_manually') === 'true';
+    
+    if (userEmails.length > 0 && !isSwitchedManually) {
       const firstEmail = userEmails[0].email_address;
-      if (address !== firstEmail && !localStorage.getItem('TMAIL.PK_switched_manually')) {
+      if (address !== firstEmail) {
         const [p, d] = firstEmail.split('@');
-        setPrefix(p);
+        setPrefix(p.toLowerCase().replace(/[^a-z0-9]/g, ''));
         setSelectedDomain(d);
         setIsAuto(false);
       }
-    } else if (userEmails.length === 0 && user?.email) {
+    } else if (userEmails.length === 0 && user?.email && !address) {
       const loginPrefix = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
       const loginDom = user.email.split('@')[1];
       setPrefix(loginPrefix);
       setSelectedDomain(loginDom);
       setIsAuto(false);
     }
-  }, [user, userEmails.length, authLoading, address]);
+  }, [user, userEmails, authLoading, address]);
 
   useEffect(() => {
     setIsInitialLoading(false);
@@ -398,8 +401,9 @@ export default function Home() {
     if (forceNew === "true" || !storedAddress || !storedAddress.includes("@") || authSuccess) {
       if (authSuccess && user?.email && verifiedDomains.length > 0) {
         const [loginPrefix, loginDom] = user.email.split('@');
+        const cleanPrefix = loginPrefix.toLowerCase().replace(/[^a-z0-9]/g, '');
         if (verifiedDomains.some(d => d.domain_name === loginDom)) {
-          setPrefix(loginPrefix);
+          setPrefix(cleanPrefix);
           setSelectedDomain(loginDom);
           setIsAuto(false);
           const defaultPass = generateRandomPassword();
@@ -414,7 +418,7 @@ export default function Home() {
         }
       } else if (user && userEmails.length > 0) {
         const [storedPrefix, storedDom] = userEmails[0].email_address.split("@");
-        setPrefix(storedPrefix);
+        setPrefix(storedPrefix.toLowerCase().replace(/[^a-z0-9]/g, ''));
         setSelectedDomain(storedDom);
         setIsAuto(false);
         hasInitialized.current = true;
@@ -440,7 +444,7 @@ export default function Home() {
         }
       }
       const [storedPrefix, storedDom] = storedAddress.split("@");
-      setPrefix(storedPrefix);
+      setPrefix(storedPrefix.toLowerCase().replace(/[^a-z0-9]/g, ''));
       setSelectedDomain(storedDomain || storedDom);
       setIsAuto(false);
       const storedPass = localStorage.getItem(passwordKey);
@@ -574,7 +578,7 @@ export default function Home() {
                 setTimeout(() => setLockMessage(null), 5000);
                 return;
               }
-              setPrefix(val);
+              setPrefix(val.toLowerCase().replace(/[^a-z0-9]/g, ''));
               setIsAuto(false);
             }}
             onAutoGenerate={() => handleAutoGenerate(true)}
