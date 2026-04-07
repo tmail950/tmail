@@ -117,6 +117,7 @@ function LoginContent() {
         } catch(e) {}
         
         localStorage.setItem("TMAIL.PK_active_email", loginEmail);
+        localStorage.setItem('TMAIL.PK_switched_manually', 'true');
         setMessage({ type: 'success', text: 'Signing you in...' })
         setTimeout(() => window.location.href = '/?auth=success', 500);
         return;
@@ -200,7 +201,7 @@ function LoginContent() {
         localStorage.setItem("TMAIL.PK_guest_activated", "true");
         localStorage.setItem("TMAIL.PK_guest_password", password);
         localStorage.setItem("TMAIL.PK_is_premium_access", "true"); 
-        
+        localStorage.setItem('TMAIL.PK_switched_manually', 'true');        
         try {
           const hJSON = localStorage.getItem("TMAIL.PK_guest_history") || "[]";
           const history = JSON.parse(hJSON);
@@ -240,6 +241,7 @@ function LoginContent() {
         localStorage.setItem("TMAIL.PK_guest_activated", "true");
         localStorage.setItem("TMAIL.PK_guest_password", password);
         localStorage.setItem("TMAIL.PK_is_premium_access", "true");
+        localStorage.setItem('TMAIL.PK_switched_manually', 'true');
 
         setMessage({ type: 'success', text: 'Inbox access granted!' })
         setTimeout(() => window.location.href = '/', 1000)
