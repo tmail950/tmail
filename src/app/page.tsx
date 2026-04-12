@@ -153,10 +153,18 @@ export default function Home() {
   }, [user]);
 
   const handleDomainChange = useCallback((newDomain: string) => {
-    if (user) return; 
     setSelectedDomain(newDomain);
     localStorage.setItem("TMAIL.PK_selected_domain", newDomain);
-  }, [user]);
+    if (tabId) {
+      localStorage.setItem(`TMAIL.PK_selected_domain_${tabId}`, newDomain);
+    }
+    // Also update active email immediately to prevent reset
+    if (prefix) {
+      const newAddr = `${prefix.toLowerCase().replace(/[^a-z0-9]/g, '')}@${newDomain.toLowerCase()}`;
+      localStorage.setItem("TMAIL.PK_active_email", newAddr);
+      if (tabId) localStorage.setItem(`TMAIL.PK_active_email_${tabId}`, newAddr);
+    }
+  }, [prefix, tabId]);
 
 
   const handleSwitchEmail = useCallback((newAddress: string) => {
@@ -322,7 +330,7 @@ export default function Home() {
   const handleAutoGenerate = useCallback((explicit = false) => {
     if (isSavingEmail || (!explicit && localStorage.getItem("TMAIL.PK_active_email"))) return;
     
-    const isPremium = !!user; // Strictly check for logged-in user
+    const isPremium = !!user; 
     const limit = isPremium ? 9 : 4;
 
     if (userEmails.length >= limit) {
@@ -340,36 +348,31 @@ export default function Home() {
     const newPassword = generateRandomPassword();
     const newDomain = verifiedDomains.length > 0 
       ? verifiedDomains[Math.floor(Math.random() * verifiedDomains.length)].domain_name 
-      : selectedDomain;
+      : (selectedDomain || "TMAIL.PK-mail.com");
+
+    const newAddr = `${newPrefix.toLowerCase()}@${newDomain.toLowerCase()}`;
 
     setPrefix(newPrefix);
     setSelectedDomain(newDomain);
     setMailboxPassword(newPassword);
     
-    // Set manual switch flag to prevent the 'Active Address' reset logic from interfering
+    // 🌍 PERSISTENCE FIX: Save immediately to storage to prevent refresh reset
+    localStorage.setItem("TMAIL.PK_active_email", newAddr);
+    localStorage.setItem("TMAIL.PK_selected_domain", newDomain);
+    if (tabId) {
+      localStorage.setItem(`TMAIL.PK_active_email_${tabId}`, newAddr);
+      localStorage.setItem(`TMAIL.PK_selected_domain_${tabId}`, newDomain);
+      localStorage.setItem(`TMAIL.PK_guest_password_${tabId}`, newPassword);
+    }
+    localStorage.setItem("TMAIL.PK_guest_password", newPassword);
+
     if (user) {
       localStorage.setItem('TMAIL.PK_switched_manually', 'true');
-    } else if (tabId) {
-      localStorage.setItem(`TMAIL.PK_guest_password_${tabId}`, newPassword);
-      localStorage.setItem("TMAIL.PK_guest_password", newPassword);
-    }
-
-    if (user?.email && !selectedDomain && verifiedDomains.length > 0) {
-      const userDom = user.email.split('@')[1];
-      if (verifiedDomains.some(d => d.domain_name === userDom)) {
-        setPrefix(user.email.split('@')[0]);
-        setSelectedDomain(userDom);
-      }
-    } else if (verifiedDomains.length > 0) {
-      // Randomize domain for EVERYONE (guest or logged in)
-      const randomIndex = Math.floor(Math.random() * verifiedDomains.length);
-      setSelectedDomain(verifiedDomains[randomIndex].domain_name);
     }
     
     setIsAuto(true);
     if (explicit) setIsFirstLoad(false); 
     lastActivatedAddr.current = null; 
-    // Manual password setting combined in top of function for atomicity
     setShowSuccess(false);
     setSaveError(null);
   }, [user, isSavingEmail, regenCount, tabId, verifiedDomains, selectedDomain, userEmails.length]);

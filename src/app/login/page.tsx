@@ -247,7 +247,7 @@ function LoginContent() {
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className={`w-full ${isSignUp ? 'max-w-2xl' : 'max-w-lg'} p-8 rounded-[40px] bg-black/40 border border-white/10 backdrop-blur-xl shadow-2xl relative overflow-hidden group transition-all duration-500`}
+        className={`w-full max-w-3xl p-4 sm:p-6 rounded-[24px] sm:rounded-[32px] bg-black/40 border border-white/10 backdrop-blur-xl shadow-2xl relative overflow-hidden group transition-all duration-500`}
       >
         <div className="absolute -top-24 -left-24 w-48 h-48 bg-[var(--color-brand-pink)]/20 rounded-full blur-[100px]" />
         <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-[var(--color-brand-purple)]/10 rounded-full blur-[100px]" />
@@ -284,7 +284,7 @@ function LoginContent() {
                   <div className="absolute -inset-[1px] bg-white/10 rounded-[32px]"></div>
                   <div className="absolute -inset-0.5 bg-[var(--color-brand-pink)]/20 rounded-[32px] blur-md opacity-0 group-hover:opacity-100 transition duration-700"></div>
 
-                  <div className="relative bg-[#0A0A0A] rounded-[24px] p-6 sm:p-8 border border-white/5 flex flex-col items-center text-center overflow-hidden transition-all">
+                  <div className="relative bg-[#0A0A0A] rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 border border-white/5 flex flex-col items-center text-center overflow-hidden transition-all">
                     <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--color-brand-pink)]/40 to-transparent"></div>
                     
                     <div className="flex items-center gap-2 mb-8">
@@ -414,7 +414,7 @@ function LoginContent() {
                   <div className="absolute -inset-[1px] bg-white/10 rounded-[32px]"></div>
                   <div className="absolute -inset-0.5 bg-[var(--color-brand-pink)]/20 rounded-[32px] blur-md opacity-0 group-hover:opacity-100 transition duration-700"></div>
 
-                  <div className="relative bg-[#0A0A0A] rounded-[24px] p-6 sm:p-8 border border-white/5 flex flex-col items-center text-center overflow-hidden transition-all">
+                  <div className="relative bg-[#0A0A0A] rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 border border-white/5 flex flex-col items-center text-center overflow-hidden transition-all">
                     <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--color-brand-pink)]/40 to-transparent"></div>
                     
                     <div className="flex items-center gap-2 mb-8">

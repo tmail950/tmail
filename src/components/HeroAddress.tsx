@@ -164,7 +164,8 @@ const HeroAddress = ({
                   value={password || ""}
                   onChange={(e) => onPasswordChange?.(e.target.value)}
                   placeholder={!password ? "Generating..." : "Password"}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center text-white placeholder:text-gray-600 outline-none focus:border-[var(--color-brand-pink)]/50 transition-all font-mono"
+                  readOnly={!isLoggedIn}
+                  className={`w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center text-white placeholder:text-gray-600 outline-none focus:border-[var(--color-brand-pink)]/50 transition-all font-mono ${!isLoggedIn ? 'cursor-default' : ''}`}
                 />
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                   <button

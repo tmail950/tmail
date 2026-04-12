@@ -286,7 +286,7 @@ const HeaderContent = memo(() => {
                 {profiles.filter(p => p.type === 'account' && p.email !== user.email).length > 0 && (
                   <button
                     onClick={() => setIsSwitchOpen(!isSwitchOpen)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${
+                    className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${
                       isSwitchOpen
                         ? 'bg-[var(--color-brand-purple)]/30 border-[var(--color-brand-pink)]/50 text-white shadow-[0_0_20px_rgba(255,18,177,0.2)]'
                         : 'bg-[var(--color-brand-purple)]/15 border-white/10 text-gray-200 hover:bg-[var(--color-brand-purple)]/25 hover:text-white'
@@ -358,7 +358,7 @@ const HeaderContent = memo(() => {
 
                   <button
                     onClick={handleLogout}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all border border-white/5 text-nowrap"
+                    className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all border border-white/5 text-nowrap"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     Sign Out
