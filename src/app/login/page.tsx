@@ -247,11 +247,11 @@ function LoginContent() {
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-lg p-8 rounded-[40px] bg-black/40 border border-white/10 backdrop-blur-xl shadow-2xl relative overflow-hidden group"
+        className={`w-full ${isSignUp ? 'max-w-2xl' : 'max-w-lg'} p-8 rounded-[40px] bg-black/40 border border-white/10 backdrop-blur-xl shadow-2xl relative overflow-hidden group transition-all duration-500`}
       >
         <div className="absolute -top-24 -left-24 w-48 h-48 bg-[var(--color-brand-pink)]/20 rounded-full blur-[100px]" />
         <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-[var(--color-brand-purple)]/10 rounded-full blur-[100px]" />
-
+ 
         <div className="relative z-10 text-center space-y-8">
           <div className="space-y-4">
             <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-white via-white to-gray-500 bg-clip-text text-transparent">
@@ -275,116 +275,227 @@ function LoginContent() {
               </div>
             )}
           </div>
-
+ 
           <form onSubmit={handleAuth} className="space-y-6" autoComplete="off">
-            <div className="space-y-4">
-              <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-[32px] transition-all group-within:border-[var(--color-brand-pink)]/30 group-hover:bg-white/10 transition-colors">
-                <div className="pl-4 text-[var(--color-brand-pink)] shrink-0">
-                  <Mail className="w-5 h-5 opacity-70" />
-                </div>
-                
-                {isSignUp ? (
-                  <>
-                    <input
-                      type="text"
-                      placeholder="prefix"
-                      required
-                      autoComplete="off"
-                      data-lpignore="true"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="flex-1 min-w-0 px-2 sm:px-6 py-4 bg-transparent outline-none text-white text-xl sm:text-2xl font-black lowercase placeholder:text-gray-700"
-                    />
-                    <div className="flex items-center shrink-0 pr-4 gap-3">
-                      <span className="text-gray-600 font-black text-2xl font-mono">@</span>
-                      <select
-                        value={selectedDomain}
-                        onChange={(e) => setSelectedDomain(e.target.value)}
-                        className="bg-white/5 border border-white/10 rounded-lg px-2 sm:px-3 py-1.5 text-[var(--color-brand-pink)] text-sm font-black outline-none cursor-pointer appearance-none min-w-[100px] sm:min-w-[120px] hover:border-[var(--color-brand-pink)]/30 transition-all font-sans"
-                      >
-                        {availableDomains.map(d => (
-                          <option key={d} value={d} className="bg-[#050505]">{d}</option>
-                        ))}
-                      </select>
+            {isSignUp ? (
+              <div className="space-y-8">
+                {/* Hero-style Signup Block */}
+                <div className="relative group w-full">
+                  <div className="absolute -inset-[1px] bg-white/10 rounded-[32px]"></div>
+                  <div className="absolute -inset-0.5 bg-[var(--color-brand-pink)]/20 rounded-[32px] blur-md opacity-0 group-hover:opacity-100 transition duration-700"></div>
+
+                  <div className="relative bg-[#0A0A0A] rounded-[24px] p-6 sm:p-8 border border-white/5 flex flex-col items-center text-center overflow-hidden transition-all">
+                    <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--color-brand-pink)]/40 to-transparent"></div>
+                    
+                    <div className="flex items-center gap-2 mb-8">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-pink)] animate-ping"></span>
+                      <h2 className="text-[10px] font-black text-[var(--color-brand-pink)] tracking-[0.5em] uppercase font-mono">
+                        NEW ACCOUNT
+                      </h2>
                     </div>
-                  </>
-                ) : (
-                  <input
-                    type="email"
-                    placeholder="name@domain.com"
-                    required
-                    autoComplete="off"
-                    data-lpignore="true"
-                    value={fullEmail}
-                    onChange={(e) => setFullEmail(e.target.value)}
-                    className="flex-1 min-w-0 px-4 py-4 bg-transparent outline-none text-white text-xl sm:text-2xl font-black lowercase placeholder:text-gray-700"
-                  />
-                )}
-                
-                <button
-                  type="button"
-                  onClick={() => {
-                    const textToCopy = isSignUp ? `${username}@${selectedDomain}` : fullEmail;
-                    if (textToCopy) {
-                      navigator.clipboard.writeText(textToCopy);
-                      setPrefixCopied(true);
-                      setTimeout(() => setPrefixCopied(false), 2000);
-                    }
-                  }}
-                  className={`mr-2 p-3 transition-all ${prefixCopied ? 'text-green-400' : 'text-gray-500 hover:text-white'} rounded-xl`}
-                >
-                  {prefixCopied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                </button>
-              </div>
-              
-              <div className="relative group/pass">
-                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-600 transition-colors group-focus-within/pass:text-[var(--color-brand-pink)]">
-                  <Lock className="w-4 h-4" />
-                </div>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  required
-                  autoComplete="new-password"
-                  data-lpignore="true"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-14 pr-28 py-5 rounded-[24px] bg-white/5 border border-white/10 focus:border-[var(--color-brand-pink)] transition-all outline-none text-white text-sm font-mono tracking-[0.2em] placeholder:tracking-normal placeholder:font-sans"
-                />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(password);
-                      setPassCopied(true);
-                      setTimeout(() => setPassCopied(false), 2000);
-                    }}
-                    className={`p-2 rounded-lg transition-all ${passCopied ? 'text-green-400 bg-green-400/10' : 'text-gray-600 hover:text-white'}`}
-                  >
-                    {passCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="p-2 text-gray-600 hover:text-white transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
 
-              {!isSignUp && (
-                <div className="h-2"></div>
-              )}
-            </div>
+                    <div className="flex flex-col gap-8 w-full">
+                      {/* Interactive Address Block (Matched to HeroAddress Style) */}
+                      <div className="flex flex-col items-center justify-center gap-3 w-full p-4 sm:p-6 rounded-[20px] sm:rounded-[32px] bg-white/[0.03] border border-white/5 group-hover:border-white/10 transition-all">
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 w-full">
+                          <input
+                            type="text"
+                            placeholder="prefix"
+                            required
+                            autoComplete="off"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            className="bg-transparent text-2xl sm:text-3xl font-black text-white outline-none min-w-0 text-center sm:text-left lowercase w-full sm:w-auto"
+                          />
+                          
+                          <span className="text-xl text-gray-700 font-black hidden sm:inline">@</span>
+                          <span className="sm:hidden text-lg text-gray-700 font-black">@</span>
+                          
+                          <div className="relative shrink-0 w-full sm:w-auto">
+                            <select
+                              value={selectedDomain}
+                              onChange={(e) => setSelectedDomain(e.target.value)}
+                              className="w-full sm:w-auto bg-white/5 hover:bg-white/10 text-base sm:text-lg font-bold text-gray-300 px-5 py-3 rounded-2xl outline-none cursor-pointer appearance-none transition-all text-center sm:text-left min-w-[150px]"
+                            >
+                              {availableDomains.map(d => (
+                                <option key={d} value={d} className="bg-[#050505]">{d}</option>
+                              ))}
+                            </select>
+                          </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-5 rounded-[24px] font-black uppercase tracking-[0.2em] shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 bg-gradient-to-r from-[var(--color-brand-purple)] to-[var(--color-brand-pink)] hover:shadow-[var(--color-brand-pink)]/30 text-white text-[11px]"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (isSignUp ? 'SignUP' : 'Login now')}
-            </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const email = `${username}@${selectedDomain}`;
+                              navigator.clipboard.writeText(email.toLowerCase());
+                              setPrefixCopied(true);
+                              setTimeout(() => setPrefixCopied(false), 2000);
+                            }}
+                            className={`p-2 transition-all ${prefixCopied ? 'text-green-400 bg-green-400/10' : 'text-gray-600 hover:text-white'} rounded-xl`}
+                          >
+                            {prefixCopied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Password Section */}
+                      <div className="flex flex-col items-center gap-1 w-full max-w-sm mx-auto">
+                        <p className="text-[10px] font-black text-gray-700 uppercase tracking-[0.4em] mb-1">PASSWORD</p>
+                        <div className="relative w-full">
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Password"
+                            required
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-[20px] px-6 py-4 text-center text-white placeholder:text-gray-700 outline-none focus:border-[var(--color-brand-pink)]/50 transition-all font-mono"
+                          />
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(password);
+                                setPassCopied(true);
+                                setTimeout(() => setPassCopied(false), 2000);
+                              }}
+                              className={`p-1 transition-colors ${passCopied ? 'text-green-400' : 'text-gray-500 hover:text-white'}`}
+                            >
+                              {passCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="p-1 text-gray-500 hover:text-white transition-colors"
+                            >
+                              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Row */}
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-4 w-full mt-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const email = `${username}@${selectedDomain}`;
+                            const creds = `Email: ${email}\nPassword: ${password}`;
+                            navigator.clipboard.writeText(creds);
+                            setPassCopied(true);
+                            setTimeout(() => setPassCopied(false), 2000);
+                          }}
+                          className={`w-full sm:w-auto px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 border whitespace-nowrap ${passCopied ? 'bg-green-500/10 border-green-500 text-green-400' : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}
+                        >
+                          {passCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                          {passCopied ? 'COPIED' : 'COPY CREDENTIALS'}
+                        </button>
+                        
+                        <button
+                          type="submit"
+                          disabled={loading}
+                          className="w-full sm:flex-1 flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all bg-white text-black hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 whitespace-nowrap"
+                        >
+                          {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (
+                            <>
+                              <Check className="w-4 h-4" />
+                              CREATE ACCOUNT NOW
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {/* Hero-style Login Block */}
+                <div className="relative group w-full">
+                  <div className="absolute -inset-[1px] bg-white/10 rounded-[32px]"></div>
+                  <div className="absolute -inset-0.5 bg-[var(--color-brand-pink)]/20 rounded-[32px] blur-md opacity-0 group-hover:opacity-100 transition duration-700"></div>
+
+                  <div className="relative bg-[#0A0A0A] rounded-[24px] p-6 sm:p-8 border border-white/5 flex flex-col items-center text-center overflow-hidden transition-all">
+                    <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--color-brand-pink)]/40 to-transparent"></div>
+                    
+                    <div className="flex items-center gap-2 mb-8">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-pink)] animate-ping"></span>
+                      <h2 className="text-[10px] font-black text-[var(--color-brand-pink)] tracking-[0.5em] uppercase font-mono">
+                        ACCESS NOW
+                      </h2>
+                    </div>
+
+                    <div className="flex flex-col gap-6 w-full">
+                      {/* Email Input Box */}
+                      <div className="flex items-center gap-3 p-2 bg-white/[0.03] border border-white/10 rounded-[24px] transition-all group-within:border-[var(--color-brand-pink)]/30 group-within:bg-white/[0.05]">
+                        <div className="pl-4 text-[var(--color-brand-pink)] shrink-0">
+                          <Mail className="w-5 h-5 opacity-70" />
+                        </div>
+                        <input
+                          type="email"
+                          placeholder="name@domain.com"
+                          required
+                          autoComplete="off"
+                          value={fullEmail}
+                          onChange={(e) => setFullEmail(e.target.value)}
+                          className="flex-1 min-w-0 pr-4 py-4 bg-transparent outline-none text-white text-xl sm:text-2xl font-black lowercase placeholder:text-gray-800"
+                        />
+                      </div>
+                      
+                      {/* Password Input Box */}
+                      <div className="relative group/pass">
+                        <div className="flex items-center gap-3 p-2 bg-white/[0.03] border border-white/10 rounded-[24px] transition-all group-within:border-[var(--color-brand-pink)]/30 group-within:bg-white/[0.05]">
+                          <div className="pl-4 text-gray-600 shrink-0">
+                            <Lock className="w-4 h-4" />
+                          </div>
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Password"
+                            required
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="flex-1 min-w-0 pr-24 py-4 bg-transparent outline-none text-white text-base font-mono tracking-[0.1em] placeholder:tracking-normal placeholder:font-sans placeholder:text-gray-800"
+                          />
+                        </div>
+                        
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(password);
+                              setPassCopied(true);
+                              setTimeout(() => setPassCopied(false), 2000);
+                            }}
+                            className={`p-2 rounded-lg transition-all ${passCopied ? 'text-green-400' : 'text-gray-600 hover:text-white'}`}
+                          >
+                            {passCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="p-2 text-gray-600 hover:text-white transition-colors"
+                          >
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full flex items-center justify-center gap-3 px-8 py-5 rounded-[24px] font-black text-sm uppercase tracking-widest transition-all bg-white text-black hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50 whitespace-nowrap mt-2"
+                      >
+                        {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (
+                          <>
+                            <Check className="w-4 h-4 text-gray-400" />
+                            LOGIN TO INBOX NOW
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </form>
 
           <footer className="pt-4 border-t border-white/5">

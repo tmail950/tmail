@@ -717,28 +717,45 @@ export default function Home() {
 
   useEffect(() => {
     if (verifiedDomains.length === 0 || authLoading || !hasInitialized.current) return;
+    
     let targetDomain = selectedDomain;
     const isManualSwitch = localStorage.getItem('TMAIL.PK_switched_manually') === 'true';
 
-    // Only stabilize/randomize the domain if it's truly missing or invalid AND we didn't just manually switch to it
+    // Priority: Try to recover from localStorage if we don't have a valid domain yet
+    if (!targetDomain || !verifiedDomains.some(d => d.domain_name === targetDomain)) {
+       const storedDomain = localStorage.getItem(`TMAIL.PK_selected_domain_${tabId}`) || localStorage.getItem("TMAIL.PK_selected_domain");
+       if (storedDomain && verifiedDomains.some(d => d.domain_name === storedDomain)) {
+         targetDomain = storedDomain;
+       }
+    }
+
+    // Stabilize or randomize only if still missing or truly invalid
     const sessionEmail = localStorage.getItem("TMAIL.PK_active_email");
     const sessionDomain = (sessionEmail && sessionEmail.includes('@')) ? sessionEmail.split('@')[1] : null;
 
-    if (sessionDomain) {
-      // FORCE use of session domain if we just logged in or switched
+    if (sessionDomain && verifiedDomains.some(d => d.domain_name === sessionDomain)) {
       targetDomain = sessionDomain;
     } else if (!targetDomain || (!isManualSwitch && !verifiedDomains.some(d => d.domain_name === targetDomain))) {
        if (user?.email) {
-          targetDomain = user.email.split('@')[1];
+          const userDom = user.email.split('@')[1];
+          if (verifiedDomains.some(d => d.domain_name === userDom)) {
+            targetDomain = userDom;
+          } else {
+            targetDomain = verifiedDomains[0].domain_name;
+          }
        } else {
-          const randomIndex = Math.floor(Math.random() * verifiedDomains.length);
-          targetDomain = verifiedDomains[randomIndex]?.domain_name || "";
+          // DON'T randomize if we already have one that might be valid or was just set
+          if (!targetDomain) {
+            const randomIndex = Math.floor(Math.random() * verifiedDomains.length);
+            targetDomain = verifiedDomains[randomIndex]?.domain_name || "";
+          }
        }
     }
+    
     if (targetDomain && targetDomain !== selectedDomain) {
       setSelectedDomain(targetDomain);
     }
-  }, [verifiedDomains, selectedDomain, user, authLoading]);
+  }, [verifiedDomains, selectedDomain, user, authLoading, tabId]);
 
   useEffect(() => {
     if (!prefix || !mailboxPassword || verifiedDomains.length === 0 || !selectedDomain || isSavingEmail || showSuccess) return;
@@ -786,6 +803,23 @@ export default function Home() {
       localStorage.setItem(`TMAIL.PK_guest_password_${tabId}`, mailboxPassword);
     }
   }, [mailboxPassword, tabId]);
+
+  // Sync password when address or user list changes for logged-in users
+  useEffect(() => {
+    if (user && address) {
+      const dbMatch = userEmails.find(e => e.email_address?.toLowerCase() === address.toLowerCase());
+      if (dbMatch?.password && dbMatch.password !== mailboxPassword) {
+        setMailboxPassword(dbMatch.password);
+      } else {
+        // Fallback to profile store if not found in list
+        const profiles = JSON.parse(localStorage.getItem('TMAIL.PK_profiles') || '[]');
+        const profileMatch = profiles.find((p: any) => p.email?.toLowerCase() === address.toLowerCase());
+        if (profileMatch?.password && profileMatch.password !== mailboxPassword) {
+          setMailboxPassword(profileMatch.password);
+        }
+      }
+    }
+  }, [user, address, userEmails, mailboxPassword]);
 
   useEffect(() => {
     if (selectedEmailId) {

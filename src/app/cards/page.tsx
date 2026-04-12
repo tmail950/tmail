@@ -42,14 +42,6 @@ export default function CardsPage() {
           
           {/* Header Section */}
           <div className="text-center space-y-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--color-brand-pink)]/10 border border-[var(--color-brand-pink)]/20 text-[var(--color-brand-pink)] mb-4"
-            >
-              <Zap className="w-3 h-3" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Holographic Generator</span>
-            </motion.div>
             <h1 className="text-4xl sm:text-6xl font-black italic tracking-tighter uppercase leading-[0.9]">
               Virtual <span className="text-[var(--color-brand-pink)] drop-shadow-[0_0_20px_rgba(255,18,177,0.4)]">Card</span> <br/>
               Matrix Platform
@@ -221,8 +213,6 @@ export default function CardsPage() {
           </div>
         </div>
       </div>
-
-      <Footer />
     </main>
   );
 }

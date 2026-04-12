@@ -23,23 +23,10 @@ const Footer = memo(() => {
             <Link href="/admin" className="hover:text-[var(--color-brand-pink)] transition-colors">Portal Access</Link>
         </div>
         
-        <div className="text-center space-y-2">
-          <p className="text-sm font-black tracking-widest text-white/40 uppercase">
-            {(!copyright.includes("©") && !copyright.includes("&copy;")) && <span>&copy; {new Date().getFullYear()} </span>}
-            {copyright}
-          </p>
-          <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
-            Handcrafted with precision by{" "}
-            <a 
-              href="https://369aiventures.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-[var(--color-brand-pink)] hover:brightness-125 underline decoration-dotted underline-offset-4 transition-all"
-            >
-              369AIVentures.com
-            </a>
-          </p>
-        </div>
+        <p className="text-sm font-black tracking-widest text-white/40 uppercase text-center">
+          {(!copyright.includes("©") && !copyright.includes("&copy;")) && <span>&copy; {new Date().getFullYear()} </span>}
+          {copyright}
+        </p>
 
         <div className="flex items-center gap-2 mt-2 opacity-30 group">
             <div className="w-8 h-[1px] bg-white/5 group-hover:w-16 transition-all duration-700"></div>

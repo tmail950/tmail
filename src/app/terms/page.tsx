@@ -72,7 +72,7 @@ export default function TermsPage() {
 
         <div className="mt-20 p-8 rounded-[40px] bg-gradient-to-r from-[var(--color-brand-purple)]/20 to-[var(--color-brand-pink)]/20 border border-white/10 text-center">
           <p className="text-gray-300 text-sm font-black uppercase tracking-widest">
-            For support regarding terms, contact us at: <span className="text-white underline underline-offset-4 decoration-[var(--color-brand-pink)]">support@369aiventures.com</span>
+            For support regarding terms, contact us at: <span className="text-white underline underline-offset-4 decoration-[var(--color-brand-pink)]">support@tmail.pk</span>
           </p>
         </div>
       </motion.div>
