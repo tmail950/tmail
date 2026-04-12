@@ -79,7 +79,7 @@ const HeroAddress = ({
         <div className="absolute -inset-[1px] bg-white/10 rounded-[32px] sm:rounded-[40px]"></div>
         <div className="absolute -inset-0.5 bg-[var(--color-brand-pink)]/20 rounded-[32px] sm:rounded-[40px] blur-md opacity-0 group-hover:opacity-100 transition duration-700"></div>
 
-        <div className="relative bg-[#0A0A0A] sm:bg-[#0A0A0A] rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 border border-white/5 flex flex-col items-center text-center overflow-hidden">
+        <div className="relative bg-[#0F0F0F] sm:bg-[#0A0A0A] rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 border border-white/10 sm:border-white/5 flex flex-col items-center text-center overflow-hidden shadow-2xl">
           <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--color-brand-pink)]/40 to-transparent"></div>
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none opacity-20"></div>
 
