@@ -251,16 +251,8 @@ const HeaderContent = memo(() => {
           <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center group-hover/logo:border-[var(--color-brand-pink)]/50 transition-all duration-500 shadow-2xl">
             <Shield className="w-6 h-6 text-[var(--color-brand-pink)] drop-shadow-[0_0_8px_rgba(0,210,255,0.6)]" />
           </div>
-          <div className="flex flex-col">
-            <div className="flex items-baseline gap-0.5">
-              <span className="text-xl sm:text-2xl font-semibold text-white tracking-widest uppercase">
-                TMAIL
-              </span>
-              <span className="text-xl sm:text-2xl font-black text-[var(--color-brand-pink)] tracking-widest uppercase drop-shadow-[0_0_10px_rgba(0,210,255,0.4)]">
-                .PK
-              </span>
-            </div>
-            <span className="text-[7px] font-mono text-gray-600 tracking-[0.4em] ml-0.5 uppercase">Node Protocol v2.0 // Secure</span>
+          <div className="flex items-center gap-1">
+            <span className="text-xl sm:text-2xl font-black text-white tracking-tighter uppercase whitespace-nowrap">TMAIL<span className="text-[var(--color-brand-pink)]">.PK</span></span>
           </div>
         </Link>
 
