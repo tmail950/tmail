@@ -296,26 +296,26 @@ function LoginContent() {
 
                     <div className="flex flex-col gap-8 w-full">
                       {/* Interactive Address Block (Matched to HeroAddress Style) */}
-                      <div className="flex flex-col items-center justify-center gap-3 w-full p-4 sm:p-6 rounded-[20px] sm:rounded-[32px] bg-white/[0.03] border border-white/5 group-hover:border-white/10 transition-all">
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 w-full">
+                      <div className="flex flex-col items-center justify-center gap-3 w-full p-3 sm:p-4 rounded-[20px] sm:rounded-[28px] bg-white/[0.03] border border-white/5 group-hover:border-white/10 transition-all mb-4">
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 w-full">
                           <input
                             type="text"
-                            placeholder="prefix"
+                            placeholder="PREFIX"
                             required
                             autoComplete="off"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            className="bg-transparent text-2xl sm:text-3xl font-black text-white outline-none min-w-0 text-center sm:text-left lowercase w-full sm:w-auto"
+                            className="bg-transparent text-xl sm:text-2xl font-black text-white outline-none min-w-0 text-center sm:text-left uppercase w-full sm:w-auto"
                           />
                           
-                          <span className="text-xl text-gray-700 font-black hidden sm:inline">@</span>
+                          <span className="text-xl text-gray-600 font-light hidden sm:inline">@</span>
                           <span className="sm:hidden text-lg text-gray-700 font-black">@</span>
                           
-                          <div className="relative shrink-0 w-full sm:w-auto">
+                          <div className="relative w-full sm:w-auto">
                             <select
                               value={selectedDomain}
                               onChange={(e) => setSelectedDomain(e.target.value)}
-                              className="w-full sm:w-auto bg-white/5 hover:bg-white/10 text-base sm:text-lg font-bold text-gray-300 px-5 py-3 rounded-2xl outline-none cursor-pointer appearance-none transition-all text-center sm:text-left min-w-[150px]"
+                              className="w-full sm:w-auto bg-white/5 hover:bg-white/10 text-base sm:text-lg font-bold text-gray-300 px-4 sm:px-5 py-2 sm:py-3 rounded-xl outline-none cursor-pointer appearance-none transition-all text-center sm:text-left min-w-[150px]"
                             >
                               {availableDomains.map(d => (
                                 <option key={d} value={d} className="bg-[#050505]">{d}</option>
