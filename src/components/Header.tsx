@@ -432,10 +432,34 @@ const HeaderContent = memo(() => {
                   <span className="text-[8px] font-black uppercase tracking-[0.3em] text-gray-500">Identity Control</span>
                   {user ? (
                     <div className="grid grid-cols-1 gap-3">
+                      {/* Switch Accounts for Mobile */}
+                      {profiles.filter(p => p.type === 'account' && p.email !== user.email).length > 0 && (
+                        <div className="space-y-2 mb-2 p-3 rounded-2xl bg-white/[0.03] border border-white/5">
+                          <span className="text-[7px] font-black uppercase tracking-widest text-gray-600 block mb-2 px-1">Switch to Saved Profile</span>
+                          {profiles
+                            .filter(p => p.type === 'account' && p.email !== user.email)
+                            .map((p) => (
+                              <button
+                                key={`mobile-switch-${p.email}`}
+                                onClick={() => handleSwitchAccount(p.email)}
+                                className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-white/5 text-left transition-all border border-transparent hover:border-white/10 group"
+                              >
+                                <div className="w-8 h-8 shrink-0 rounded-lg bg-[var(--color-brand-purple)]/20 text-[var(--color-brand-purple)] flex items-center justify-center text-[10px] font-black border border-white/5 group-hover:bg-[var(--color-brand-purple)]/30">
+                                  {p.email?.[0]?.toUpperCase()}
+                                </div>
+                                <div className="flex flex-col min-w-0 overflow-hidden">
+                                  <span className="text-[11px] text-gray-300 font-bold truncate">{p.email}</span>
+                                  <span className="text-[7px] text-[var(--color-brand-pink)] font-black uppercase tracking-widest">Connect Identity →</span>
+                                </div>
+                              </button>
+                            ))}
+                        </div>
+                      )}
+
                       {profiles.length < 5 && (
                       <button
                         onClick={() => { saveCurrentAccount(); setIsMenuOpen(false); router.push('/login?signup=true'); }}
-                        className="flex items-center gap-3 w-full p-4 rounded-2xl bg-white text-black text-[10px] font-black uppercase tracking-widest"
+                        className="flex items-center gap-3 w-full p-4 rounded-2xl bg-white text-black text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all"
                       >
                         <PlusCircle className="w-4 h-4" />
                         Add a Profile
@@ -443,9 +467,9 @@ const HeaderContent = memo(() => {
                       )}
                       <button
                         onClick={handleLogout}
-                        className="flex items-center gap-3 w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest"
+                        className="flex items-center gap-3 w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all"
                       >
-                        <LogOut className="w-4 h-4" />
+                        <LogOut className="w-4 h-4 text-red-500" />
                         Sign Out
                       </button>
                     </div>
