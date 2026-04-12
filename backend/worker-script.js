@@ -1,7 +1,7 @@
 export default {
   async email(message, env, ctx) {
     // 1. Configuration
-    const INGEST_URL = "https://marvelous-bubblegum-183031.netlify.app/api/ingest";
+    const INGEST_URL = "https://qcmail.vercel.app/api/ingest";
     const API_KEY = "quamify_secret_key_fixed"; 
 
     const sender = message.from;
