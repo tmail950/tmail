@@ -56,7 +56,7 @@ export default function Home() {
   // 2. Memoized Values
   const address = useMemo(() => {
     if (!prefix || !selectedDomain) return "";
-    return `${prefix.toLowerCase().replace(/[^a-z0-9]/g, '')}@${selectedDomain}`;
+    return `${prefix.toLowerCase().replace(/[^a-z0-9]/g, '')}@${selectedDomain.toLowerCase()}`;
   }, [prefix, selectedDomain]);
 
   // 3. Callback Functions
@@ -562,7 +562,7 @@ export default function Home() {
     const urlParams = new URLSearchParams(window.location.search);
     const authSuccess = urlParams.get('auth') === 'success';
 
-    // Priority 1: Recent login or explicit intent from global storage
+    // Priority 1: Recent login or explicit intent from global storage (Absolute Source of Truth)
     const globalActive = localStorage.getItem("TMAIL.PK_active_email");
 
     // Anti-Deadlock: If we are at the limit and current address is not in reserves, 
@@ -574,29 +574,20 @@ export default function Home() {
       if (!isReserved && userEmails[0]?.email_address) {
         console.log("LIMIT: User at 9/9, auto-switching to first reserve to avoid deadlock.");
         handleSwitchEmail(userEmails[0].email_address);
-        hasInitialized.current = true;
         return;
       }
     }
 
-    let effectiveAddress = storedAddress;
+    let effectiveAddress = globalActive || (storedAddress && storedAddress.includes("@") ? storedAddress : null);
 
-    if (globalActive && globalActive.includes("@")) {
-      effectiveAddress = globalActive;
-      localStorage.setItem(activeKey, globalActive);
-      localStorage.setItem('TMAIL.PK_switched_manually', 'true');
-    }
-
-    if (globalActive || forceNew === "true" || !effectiveAddress || !effectiveAddress.includes("@") || authSuccess) {
+    if (authSuccess || globalActive || forceNew === "true" || !effectiveAddress) {
       if (authSuccess && user && verifiedDomains.length > 0) {
-        // PRIORITIZE: Any existing custom emails from user_emails first!
-        // This ensures the custom email like 'kkk88@qammify.sbs' survives logout/login.
-        const firstCustom = userEmails.length > 0 ? userEmails[0].email_address : null;
-        const loginTarget = firstCustom || (globalActive && globalActive.includes("@") ? globalActive : user.email);
+        // PRIORITIZE: The specific email used for login/creation
+        const loginTarget = globalActive || (user.email && user.email.includes('@') ? user.email : null);
         
         if (loginTarget) {
           const [loginPrefix, loginDom] = loginTarget.split('@');
-          const cleanPrefix = loginPrefix.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const cleanPrefix = loginPrefix.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
           
           if (loginDom) {
             setPrefix(cleanPrefix);
@@ -608,12 +599,10 @@ export default function Home() {
             const storedPass = dbMatch?.password || localStorage.getItem("TMAIL.PK_guest_password");
             const finalPass = storedPass || generateRandomPassword();
             
-            setMailboxPassword(finalPass);
+            if (finalPass) setMailboxPassword(finalPass);
             
             setTimeout(() => {
-              const currentEmails = JSON.parse(JSON.stringify(userEmails)); 
-              const isAlreadyOwned = currentEmails.some((e: any) => e.email_address?.toLowerCase() === loginTarget.toLowerCase());
-              
+              const isAlreadyOwned = userEmails.some((e: any) => e.email_address?.toLowerCase() === loginTarget.toLowerCase());
               if (!isAlreadyOwned) {
                 handleSaveEmail(true, loginTarget, finalPass);
               }
@@ -622,19 +611,24 @@ export default function Home() {
             }, 1000);
             hasInitialized.current = true;
           } else {
-            handleAutoGenerate();
+            handleAutoGenerate(true);
             hasInitialized.current = true;
           }
+        } else if (userEmails.length > 0) {
+           handleSwitchEmail(userEmails[0].email_address);
+           hasInitialized.current = true;
+        } else {
+           handleAutoGenerate(true);
+           hasInitialized.current = true;
         }
       } else if (effectiveAddress && verifiedDomains.length > 0) {
-        // We recovered an email from global or it existed, but we were in the 'force' block
+        // Recovery path for existing tab session
         const [p, d] = effectiveAddress.split("@");
         setPrefix(p.toLowerCase().replace(/[^a-z0-9]/g, ''));
         setSelectedDomain(d);
         setIsAuto(false);
         hasInitialized.current = true;
         
-        // Priority: Match database password if available
         const dbPass = userEmails.find((e: any) => e.email_address?.toLowerCase() === effectiveAddress?.toLowerCase())?.password;
         const storedPass = dbPass || localStorage.getItem(passwordKey) || localStorage.getItem("TMAIL.PK_guest_password");
         if (storedPass) setMailboxPassword(storedPass);
@@ -643,39 +637,34 @@ export default function Home() {
         // Clear global session after sync is fully established
         setTimeout(() => localStorage.removeItem("TMAIL.PK_active_email"), 2000);
       } else if (user && userEmails.length > 0) {
-        const [storedPrefix, storedDom] = userEmails[0].email_address.split("@");
+        const firstEmail = userEmails[0].email_address.toLowerCase();
+        const [storedPrefix, storedDom] = firstEmail.split("@");
         setPrefix(storedPrefix.toLowerCase().replace(/[^a-z0-9]/g, ''));
         setSelectedDomain(storedDom);
         setIsAuto(false);
         hasInitialized.current = true;
-      } else if (user?.email) {
-        const loginPrefix = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-        setPrefix(loginPrefix);
+      } else if (user?.email && user.email.includes('@')) {
+        const [lp, ld] = user.email.split('@');
+        setPrefix(lp.toLowerCase().replace(/[^a-z0-9]/g, ''));
+        setSelectedDomain(ld);
         setIsAuto(false);
         hasInitialized.current = true;
       } else if (!user && verifiedDomains.length > 0) {
-        // Only auto-generate for a truly fresh anonymous user with no local history
-        const history = JSON.parse(localStorage.getItem("TMAIL.PK_guest_history") || "[]");
-        if (history.length > 0) {
-          const [hPrefix, hDom] = history[0].email_address.split('@');
-          setPrefix(hPrefix.toLowerCase().replace(/[^a-z0-9]/g, ''));
-          setSelectedDomain(hDom);
-          setIsAuto(false);
-        } else {
-          // Explicit deterministic generation for first-time session to ensure immediate activation
-          const initialPrefix = generateAsianName();
-          const initialDomain = verifiedDomains[Math.floor(Math.random() * verifiedDomains.length)].domain_name;
-          const initialPassword = generateRandomPassword();
-          
-          setPrefix(initialPrefix);
-          setSelectedDomain(initialDomain);
-          setMailboxPassword(initialPassword);
-          setIsAuto(true);
-          
-          // Force a small delay to ensure states have settled before saving
-          setTimeout(() => {
-            handleSaveEmail(true, `${initialPrefix}@${initialDomain}`, initialPassword);
-          }, 800);
+        // For guest, check global history first
+        const historyStr = localStorage.getItem("TMAIL.PK_guest_history") || "[]";
+        try {
+          const history = JSON.parse(historyStr);
+          if (history.length > 0) {
+            const lastAddr = history[0].email_address || history[0];
+            const [hPrefix, hDom] = lastAddr.split('@');
+            setPrefix(hPrefix.toLowerCase().replace(/[^a-z0-9]/g, ''));
+            setSelectedDomain(hDom);
+            setIsAuto(false);
+          } else {
+            handleAutoGenerate(true); // Triggers explicit randomization only if no history
+          }
+        } catch (e) {
+          handleAutoGenerate(true);
         }
         if (!localStorage.getItem(createdKey)) {
           localStorage.setItem(createdKey, Date.now().toString());
@@ -698,12 +687,9 @@ export default function Home() {
       
       const storedPass = localStorage.getItem(passwordKey);
       if (storedPass) setMailboxPassword(storedPass);
-      
-      // Removed: Manual setUserEmails call here. fetchUserEmails() will handle this centrally.
-      
       hasInitialized.current = true;
     }
-  }, [authLoading, isDomainLoading, user, userEmails.length, verifiedDomains, tabId, handleAutoGenerate]);
+  }, [authLoading, isDomainLoading, user, userEmails, verifiedDomains, tabId, handleAutoGenerate]);
 
   useEffect(() => {
     // FALLBACK for logged-in users with no existing emails:
@@ -729,13 +715,14 @@ export default function Home() {
        }
     }
 
-    // Stabilize or randomize only if still missing or truly invalid
+    // Stabilize only if truly invalid
     const sessionEmail = localStorage.getItem("TMAIL.PK_active_email");
     const sessionDomain = (sessionEmail && sessionEmail.includes('@')) ? sessionEmail.split('@')[1] : null;
 
     if (sessionDomain && verifiedDomains.some(d => d.domain_name === sessionDomain)) {
       targetDomain = sessionDomain;
     } else if (!targetDomain || (!isManualSwitch && !verifiedDomains.some(d => d.domain_name === targetDomain))) {
+       // Fallback to first available if we are totally lost, but DO NOT randomize randomly
        if (user?.email) {
           const userDom = user.email.split('@')[1];
           if (verifiedDomains.some(d => d.domain_name === userDom)) {
@@ -743,12 +730,8 @@ export default function Home() {
           } else {
             targetDomain = verifiedDomains[0].domain_name;
           }
-       } else {
-          // DON'T randomize if we already have one that might be valid or was just set
-          if (!targetDomain) {
-            const randomIndex = Math.floor(Math.random() * verifiedDomains.length);
-            targetDomain = verifiedDomains[randomIndex]?.domain_name || "";
-          }
+       } else if (verifiedDomains.length > 0) {
+          targetDomain = verifiedDomains[0].domain_name;
        }
     }
     

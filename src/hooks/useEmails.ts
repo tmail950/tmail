@@ -14,6 +14,8 @@ export function useEmails(recipientAddress: string | null) {
       return;
     }
 
+    const normalizedAddress = recipientAddress.toLowerCase().trim();
+
     // Safety timeout to prevent infinite spinner
     const timeout = setTimeout(() => {
       if (isMounted) setIsLoading(false);
@@ -24,7 +26,7 @@ export function useEmails(recipientAddress: string | null) {
       const { data, error } = await supabase
         .from("emails")
         .select("*")
-        .eq("recipient_address", recipientAddress)
+        .eq("recipient_address", normalizedAddress)
         .order("received_at", { ascending: false });
 
       if (error) throw error;
@@ -46,16 +48,18 @@ export function useEmails(recipientAddress: string | null) {
 
     if (!recipientAddress) return;
 
+    const normalizedAddress = recipientAddress.toLowerCase().trim();
+
     // Set up realtime subscription
     const channel = supabase
-      .channel(`emails-${recipientAddress}`)
+      .channel(`emails-${normalizedAddress}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "emails",
-          filter: `recipient_address=eq.${recipientAddress}`,
+          filter: `recipient_address=eq.${normalizedAddress}`,
         },
         (payload: any) => {
           if (isMounted) {
