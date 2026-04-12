@@ -3,10 +3,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-brand-purple: #7d12ff;
-  --color-brand-pink: #ff12b1;
-  --color-brand-orange: #ff8a12;
-  --color-brand-dark: #050505;
+  --color-brand-purple: #0555FF;
+  --color-brand-pink: #00D2FF;
+  --color-brand-orange: #0033BD;
+  --color-brand-dark: #020202;
   --font-sans: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   --font-mono: var(--font-geist-mono);
   
@@ -31,18 +31,18 @@
   0%, 100% {
     opacity: 1;
     transform: scale(1);
-    box-shadow: 0 0 20px rgba(255, 18, 177, 0.4);
+    box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
   }
   50% {
     opacity: .8;
-    transform: scale(1.02);
-    box-shadow: 0 0 40px rgba(125, 18, 255, 0.6);
+    transform: scale(1);
+    box-shadow: 0 0 35px rgba(5, 85, 255, 0.5);
   }
 }
 
 :root {
-  /* Force dark mode for futuristic antigravity look */
-  --background: #050505;
+  /* Deeper Black for professional contrast */
+  --background: #020202;
   --foreground: #ffffff;
 }
 
@@ -52,28 +52,28 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
-  /* Holographic mesh gradient underneath */
+  /* High-Contrast Node Gradients */
   background-image: 
-    radial-gradient(circle at 15% 50%, rgba(125, 18, 255, 0.08), transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(255, 18, 177, 0.08), transparent 25%),
-    radial-gradient(circle at 50% 80%, rgba(255, 138, 18, 0.05), transparent 25%);
+    radial-gradient(circle at 10% 20%, rgba(0, 210, 255, 0.05), transparent 30%),
+    radial-gradient(circle at 90% 80%, rgba(5, 85, 255, 0.05), transparent 30%),
+    radial-gradient(circle at 50% 50%, rgba(0, 33, 189, 0.03), transparent 50%);
   background-attachment: fixed;
 }
 
-/* Glassmorphism utilities */
+/* Glassmorphism Redefined - Sharper borders */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 10, 10, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 210, 255, 0.15);
 }
 
 .glass-card {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(5, 5, 5, 0.6);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
 }
 
 /* Holographic styling for active elements */
@@ -114,7 +114,7 @@ body {
   left: -100%;
   width: 50%;
   height: 100%;
-  background: linear-gradient(to right, transparent, rgba(255, 18, 177, 0.1), rgba(125, 18, 255, 0.1), transparent);
+  background: linear-gradient(to right, transparent, rgba(0, 210, 255, 0.1), rgba(5, 85, 255, 0.1), transparent);
   transform: skewX(-20deg);
   transition: all 0.5s ease;
 }
@@ -145,11 +145,47 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(to right, transparent, rgba(255, 18, 177, 0.1), transparent);
+  background: linear-gradient(to right, transparent, rgba(0, 210, 255, 0.1), transparent);
   animation: scanline 3s linear infinite;
 }
 
-/* Global Interactive cursor */
-button, a, input[type="button"], input[type="submit"], [role="button"], .cursor-pointer {
-  cursor: pointer !important;
+/* Full-Screen Reading View Support */
+.is-reading-mail header,
+.is-reading-mail footer {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+.is-reading-mail main {
+  padding-top: 0 !important;
+  max-width: 100% !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  height: 100vh !important;
+  margin: 0 !important;
+}
+
+/* Force mobile-first full screen when reading */
+.is-reading-mail .fixed.inset-0.z-\[100\] {
+  padding: 0 !important;
+}
+
+.is-reading-mail .max-h-\[80vh\],
+.is-reading-mail .max-h-\[90vh\],
+.is-reading-mail .sm\:h-\[92vh\] {
+  max-height: 100vh !important;
+  height: 100vh !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  border-radius: 0 !important;
+  border: none !important;
+  margin: 0 !important;
+}
+
+.is-reading-mail .rounded-\[40px\],
+.is-reading-mail .rounded-\[32px\] {
+  border-radius: 0 !important;
 }

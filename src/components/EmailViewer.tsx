@@ -112,26 +112,25 @@ export default memo(function EmailViewer({
   const isProbablyHtml = /<[a-z][\s\S]*>/i.test(cleanBodyText);
   let rawHtml = email.body_html ? decodeQuotedPrintable(email.body_html) : (isProbablyHtml ? cleanBodyText : null);
 
-  // Inject dark theme override for standard HTML emails
-  const darkCss = `<style>
-    body, html { background-color: transparent !important; color: #e5e7eb !important; font-family: system-ui, -apple-system, sans-serif !important; }
-    table, td, th, div { background-color: transparent !important; color: inherit !important; border-color: rgba(255,255,255,0.1) !important; }
-    a { color: #ff12b1 !important; text-decoration: none !important; }
-    span, p, h1, h2, h3, h4, h5, h6 { color: #e5e7eb !important; }
+  // Inject minimal styling for the iframe, keeping it light/neutral
+  const baseCss = `<style>
+    body, html { background-color: white !important; color: #1a1a1a !important; font-family: system-ui, -apple-system, sans-serif !important; line-height: 1.6 !important; padding: 20px !important; }
+    img { max-width: 100% !important; height: auto !important; }
+    a { color: #0555FF !important; }
   </style>`;
   
-  const displayHtml = rawHtml ? (rawHtml.includes('<head>') ? rawHtml.replace('<head>', `<head>${darkCss}`) : `${darkCss}${rawHtml}`) : null;
+  const displayHtml = rawHtml ? (rawHtml.includes('<head>') ? rawHtml.replace('<head>', `<head>${baseCss}`) : `${baseCss}${rawHtml}`) : null;
 
   return (
     <div className="h-full w-full flex flex-col bg-[#050505] rounded-[32px] border border-white/10 overflow-hidden shadow-2xl relative">
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none"></div>
 
       {/* Control Bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 z-20 bg-black/40 backdrop-blur-xl">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-6 pt-8 pb-4 border-b border-white/5 z-20 bg-black/40 backdrop-blur-xl">
+        <div className="flex items-center gap-3">
           <button 
             onClick={onClose}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all text-xs font-black uppercase tracking-widest border border-white/5"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all text-[11px] font-black uppercase tracking-widest border border-white/10 shadow-lg active:scale-95"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
@@ -198,20 +197,20 @@ export default memo(function EmailViewer({
       </div>
       
       {/* Body Content - clean message only */}
-      <div className="flex-1 p-8 sm:p-12 overflow-y-auto custom-scrollbar bg-black/10 z-10">
+      <div className="flex-1 p-4 sm:p-8 overflow-y-auto custom-scrollbar bg-black/50 z-10">
         <div className="max-w-4xl mx-auto">
           {displayHtml ? (
-            <div className="bg-transparent rounded-3xl overflow-hidden min-h-[500px]">
+            <div className="bg-white rounded-3xl overflow-hidden min-h-[600px] shadow-2xl border border-white/10">
               <iframe
                 srcDoc={displayHtml}
-                className="w-full h-full min-h-[500px] border-0"
+                className="w-full h-full min-h-[600px] border-0"
                 sandbox="allow-same-origin"
                 title="Email content"
               />
             </div>
           ) : (
-            <div className="text-gray-200 leading-relaxed whitespace-pre-wrap font-sans text-lg selection:bg-[var(--color-brand-pink)] selection:text-white pb-20">
-              {cleanBodyText || <span className="text-gray-600 italic font-medium">No decrypted content found in this transmission.</span>}
+            <div className="bg-white p-8 sm:p-12 rounded-3xl shadow-2xl text-gray-900 leading-relaxed whitespace-pre-wrap font-sans text-lg selection:bg-[var(--color-brand-pink)] selection:text-white pb-20 border border-white/10">
+              {cleanBodyText || <span className="text-gray-400 italic font-medium">No decrypted content found in this transmission.</span>}
             </div>
           )}
         </div>

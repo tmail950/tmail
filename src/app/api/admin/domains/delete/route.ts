@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient as createServerClient } from '@/lib/supabase/server'
-import { isMasterAdmin } from '@/lib/admin-check'
 
 export async function POST(req: Request) {
   try {
+    // Dynamic imports to strictly isolate server logic from build-time tracing
+    const { createClient: createServerClient } = await import('@/lib/supabase/server')
+    const { createAdminClient } = await import('@/lib/supabase/admin')
+    const { isMasterAdmin } = await import('@/lib/admin-check')
+
     const supabase = await createServerClient()
     const { data: { session } } = await supabase.auth.getSession()
 

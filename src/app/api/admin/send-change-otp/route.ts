@@ -1,10 +1,12 @@
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
-import { emailService } from '@/lib/email'
 
 export async function POST() {
   try {
+    // Dynamic imports to strictly isolate server logic from build-time tracing
+    const { createClient } = await import('@/lib/supabase/server')
+    const { createAdminClient } = await import('@/lib/supabase/admin')
+    const { emailService } = await import('@/lib/email')
+
     const supabase = await createClient()
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: Request) {
+  // Moved server-only import inside the handler function to ensure accurate boundary evaluation
+  const { createClient } = await import('@/lib/supabase/server')
+  
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   // use "code" from search params to exchange for session
@@ -15,5 +17,7 @@ export async function GET(request: Request) {
   }
 
   // redirect the user to login with an error message
-  return NextResponse.redirect(new URL('/login?error=Authentication failed. Please check your credentials or try again.', request.url))
+  const errorMsg = 'Authentication failed. Please check your credentials or try again.'
+  const redirectUrl = new URL(`/login?error=${encodeURIComponent(errorMsg)}`, request.url)
+  return NextResponse.redirect(redirectUrl)
 }

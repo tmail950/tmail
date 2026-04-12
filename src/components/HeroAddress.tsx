@@ -27,6 +27,7 @@ interface HeroAddressProps {
   sessionExpired?: boolean;
   onSimulate?: () => void;
   isIdentity?: boolean;
+  guestTimeLeft?: number | null;
 }
 
 const HeroAddress = ({
@@ -52,7 +53,8 @@ const HeroAddress = ({
   onPasswordChange,
   sessionExpired = false,
   onSimulate,
-  isIdentity = false
+  isIdentity = false,
+  guestTimeLeft = null
 }: HeroAddressProps) => {
   const [copied, setCopied] = useState(false);
   const [prefixCopied, setPrefixCopied] = useState(false);
@@ -74,15 +76,21 @@ const HeroAddress = ({
       className="w-full flex justify-center py-4"
     >
       <div className="relative group w-full max-w-3xl">
-        <div className="absolute -inset-1 bg-gradient-to-r from-[--color-brand-purple] via-[--color-brand-pink] to-[--color-brand-orange] rounded-[40px] blur-2xl opacity-20 group-hover:opacity-40 transition duration-1000 animate-pulse-glow"></div>
+        <div className="absolute -inset-[1px] bg-white/10 rounded-[32px] sm:rounded-[40px]"></div>
+        <div className="absolute -inset-0.5 bg-[var(--color-brand-pink)]/20 rounded-[32px] sm:rounded-[40px] blur-md opacity-0 group-hover:opacity-100 transition duration-700"></div>
 
-        <div className="relative bg-black/40 backdrop-blur-md sm:backdrop-blur-2xl rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 border border-white/10 flex flex-col items-center text-center overflow-hidden">
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none opacity-20"></div>
+        <div className="relative bg-[#0A0A0A] sm:bg-[#0A0A0A] rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 border border-white/5 flex flex-col items-center text-center overflow-hidden">
+          <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--color-brand-pink)]/40 to-transparent"></div>
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none opacity-20"></div>
 
           <div className="flex items-center gap-2 mb-3">
             <span className="w-1.5 h-1.5 rounded-full bg-[--color-brand-pink] animate-ping"></span>
-            <h2 className="text-xs font-black text-gray-400 tracking-[0.3em] uppercase relative z-10">
-              ACTIVE INBOX
+            <h2 className="text-[9px] font-black text-gray-400 tracking-[0.5em] uppercase relative z-10 font-mono">
+              ACTIVE INBOX {guestTimeLeft !== null && (
+                <span className="ml-2 text-[var(--color-brand-pink)] animate-pulse shadow-cyan-500">
+                  [{Math.floor(guestTimeLeft / 60)}:{(guestTimeLeft % 60).toString().padStart(2, '0')}]
+                </span>
+              )}
             </h2>
           </div>
 
@@ -149,13 +157,13 @@ const HeroAddress = ({
 
             {/* Password Input for All Users (Consistency) */}
             <div className="flex flex-col items-center gap-1 w-full max-w-xs mx-auto mb-2">
-              <label className="text-[9px] font-black text-gray-600 uppercase tracking-[0.2em]">Secret Key</label>
+              <label className="text-[9px] font-black text-gray-600 uppercase tracking-[0.2em]">Password</label>
               <div className="relative w-full">
                 <input
                   type={showPassword ? "text" : "password"}
-                  value={password}
+                  value={password || ""}
                   onChange={(e) => onPasswordChange?.(e.target.value)}
-                  placeholder="Set secret key"
+                  placeholder={!password ? "Generating..." : "Password"}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center text-white placeholder:text-gray-600 outline-none focus:border-[var(--color-brand-pink)]/50 transition-all font-mono"
                 />
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
@@ -238,33 +246,7 @@ const HeroAddress = ({
                 </button>
               )}
             </div>
-            {/* Saved Addresses Quick Switcher */}
-            {savedAddresses.filter(addr => addr !== emailAddress).length > 0 && (
-              <div className="flex flex-col items-center gap-4 mt-4 py-6 border-t border-white/5">
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">
-                  RESERVES EMAILS ({savedAddresses.filter(addr => addr !== emailAddress).length})
-                </span>
-                <div className="flex flex-wrap justify-center gap-2 max-w-2xl px-4">
-                  {savedAddresses
-                    .filter(addr => addr !== emailAddress && addr.includes('@'))
-                    .map((addr) => (
-                      <div key={addr} className="flex items-center gap-1 group/addr">
-                      <button
-                        onClick={() => onSwitchAddress?.(addr)}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-bold transition-all border ${addr === emailAddress
-                            ? "bg-[var(--color-brand-pink)]/20 text-[var(--color-brand-pink)] border-[var(--color-brand-pink)]/40 shadow-[0_0_15px_rgba(255,18,177,0.2)]"
-                            : "bg-white/5 text-gray-400 border-white/5 hover:border-white/20 hover:text-white"
-                          }`}
-                      >
-                        {addr}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
-
         </div>
       </div>
     </motion.div>

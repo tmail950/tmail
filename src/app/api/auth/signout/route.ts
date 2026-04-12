@@ -1,7 +1,8 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
+  // Moved server-only import inside the handler function
+  const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()
 
   // 1. Check if we have a session to end

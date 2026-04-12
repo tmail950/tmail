@@ -1,11 +1,10 @@
 <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="qGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#7d12ff"/>
-      <stop offset="50%" stop-color="#ff12b1"/>
-      <stop offset="100%" stop-color="#ff8a12"/>
+      <stop offset="0%" stop-color="#0555FF"/>
+      <stop offset="100%" stop-color="#00D2FF"/>
     </linearGradient>
   </defs>
-  <rect width="64" height="64" rx="16" fill="#050505" />
+  <rect width="64" height="64" rx="20" fill="#020202" />
   <text x="50%" y="54%" font-family="Arial, sans-serif" font-weight="900" font-size="44" fill="url(#qGrad)" text-anchor="middle" dominant-baseline="middle">T</text>
 </svg>

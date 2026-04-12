@@ -37,6 +37,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: signupError.message }, { status: signupError.status || 500 })
     }
 
+    // 3. Link the signup email to the user's personal inbox list
+    const { error: linkError } = await supabase
+      .from('user_emails')
+      .insert({
+        user_id: userData.user.id,
+        email_address: email,
+        password: password,
+        created_at: new Date().toISOString()
+      });
+
+    if (linkError) {
+      console.error('Signup link error (non-fatal):', linkError.message);
+      // We don't block the result if just the link fails, but it's important for the UI
+    }
+
     return NextResponse.json({ 
       message: 'User created successfully',
       user: userData.user

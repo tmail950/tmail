@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe, Home, LogOut, Shield, Menu, X, Users, PlusCircle, LogIn, Loader2, CheckCircle2 } from "lucide-react";
+import { Globe, Home, LogOut, Shield, Menu, X, Users, PlusCircle, LogIn, Loader2, CheckCircle2, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useState, useEffect, Suspense, useMemo, memo, useCallback } from "react";
@@ -236,6 +236,7 @@ const HeaderContent = memo(() => {
 
   const navLinks = useMemo(() => [
     { href: "/", label: "Home", icon: Home, active: pathname === "/" },
+    { href: "/cards", label: "Generate Cards", icon: CreditCard, active: pathname === "/cards" },
     ...(isAdmin ? [
       { href: "/domains", label: "Domains", icon: Globe, active: pathname === "/domains", isAdmin: true },
       { href: "/admin/settings", label: "Settings", icon: Shield, active: pathname === '/admin/settings', isAdmin: true }
@@ -243,15 +244,23 @@ const HeaderContent = memo(() => {
   ], [pathname, isAdmin]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 p-4 transition-all duration-300">
+    <header className="fixed top-0 left-0 right-0 z-[160] p-4 transition-all duration-300">
       <div suppressHydrationWarning={true} className={`max-w-7xl mx-auto glass-panel rounded-2xl p-4 flex items-center justify-between border-[rgba(255,255,255,0.05)] shadow-xl relative z-20 transition-all duration-300 ${isScrolled ? 'bg-[#050505]/80 backdrop-blur-xl border-white/10' : ''}`}>
         {/* Logo Text */}
-        <Link href="/" className="flex items-center gap-3 shrink-0">
+        <Link href="/" className="flex items-center gap-3 shrink-0 group/logo">
+          <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center group-hover/logo:border-[var(--color-brand-pink)]/50 transition-all duration-500 shadow-2xl">
+            <Shield className="w-6 h-6 text-[var(--color-brand-pink)] drop-shadow-[0_0_8px_rgba(0,210,255,0.6)]" />
+          </div>
           <div className="flex flex-col">
-            <span className="text-xl sm:text-2xl font-black tracking-widest bg-gradient-to-r from-[#7d12ff] via-[#ff12b1] to-[#ff8a12] bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(255,18,177,0.4)] uppercase">
-              TMAIL.PK
-            </span>
-            <span className="text-[8px] font-mono text-gray-500 tracking-[0.3em] ml-0.5 uppercase">v1.2 // Secure</span>
+            <div className="flex items-baseline gap-0.5">
+              <span className="text-xl sm:text-2xl font-semibold text-white tracking-widest uppercase">
+                TMAIL
+              </span>
+              <span className="text-xl sm:text-2xl font-black text-[var(--color-brand-pink)] tracking-widest uppercase drop-shadow-[0_0_10px_rgba(0,210,255,0.4)]">
+                .PK
+              </span>
+            </div>
+            <span className="text-[7px] font-mono text-gray-600 tracking-[0.4em] ml-0.5 uppercase">Node Protocol v2.0 // Secure</span>
           </div>
         </Link>
 
@@ -359,33 +368,43 @@ const HeaderContent = memo(() => {
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
                     className="flex items-center gap-3 p-1 rounded-2xl hover:bg-white/5 transition-all cursor-pointer group"
                   >
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-brand-purple)] to-[var(--color-brand-pink)] flex items-center justify-center text-white font-black shadow-[0_0_15px_rgba(255,18,177,0.3)] group-hover:scale-105 transition-transform shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-brand-purple)] to-[var(--color-brand-pink)] flex items-center justify-center text-white font-black shadow-[0_0_15px_rgba(0,210,255,0.3)] group-hover:scale-105 transition-transform shrink-0">
                       {(user.user_metadata?.username?.[0] || user.email?.[0]).toUpperCase()}
                     </div>
                   </button>
                   
-                  {/* Mobile Hamburger */}
+                  {/* Mobile Hamburger (Visible to all on mobile) */}
                   <button 
                     onClick={() => setIsMenuOpen(true)}
-                    className="md:hidden w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white"
+                    className="md:hidden w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white shrink-0"
                   >
                     <Menu className="w-5 h-5" />
                   </button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 sm:gap-4">
-                  <Link 
-                    href="/login"
-                    className="px-4 py-2 sm:py-2.5 rounded-xl border border-white/20 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all cursor-pointer bg-white/5"
+                  <div className="hidden md:flex items-center gap-2 sm:gap-4">
+                    <Link 
+                      href="/login"
+                      className="px-4 py-2 sm:py-2.5 rounded-xl border border-white/20 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all cursor-pointer bg-white/5"
+                    >
+                      Login
+                    </Link>
+                    <Link 
+                      href="/login?signup=true"
+                      className="px-4 py-2 sm:py-2.5 rounded-xl bg-white text-black text-[10px] sm:text-xs font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95 cursor-pointer shadow-[0_0_20px_rgba(255,255,255,0.1)] text-nowrap"
+                    >
+                      Create Account
+                    </Link>
+                  </div>
+
+                  {/* Mobile Hamburger for Logged-Out Users */}
+                  <button 
+                    onClick={() => setIsMenuOpen(true)}
+                    className="md:hidden w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white shrink-0"
                   >
-                    Login
-                  </Link>
-                  <Link 
-                    href="/login?signup=true"
-                    className="px-4 py-2 sm:py-2.5 rounded-xl bg-white text-black text-[10px] sm:text-xs font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95 cursor-pointer shadow-[0_0_20px_rgba(255,255,255,0.1)] text-nowrap"
-                  >
-                    Create Account
-                  </Link>
+                    <Menu className="w-5 h-5" />
+                  </button>
                 </div>
               )}
             </>
@@ -409,7 +428,7 @@ const HeaderContent = memo(() => {
               className="fixed top-0 right-0 bottom-0 w-80 z-[110] bg-[#0A0A0A] border-l border-white/10 p-8 shadow-2xl"
             >
               <div className="flex items-center justify-between mb-12">
-                <span className="text-[10px] font-black uppercase tracking-widest text-[#ff12b1]">Navigation</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-brand-pink)]">Navigation</span>
                 <button onClick={() => setIsMenuOpen(false)} className="p-2 rounded-xl bg-white/5 text-gray-400">
                   <X className="w-5 h-5" />
                 </button>
@@ -453,7 +472,7 @@ const HeaderContent = memo(() => {
                         className="flex items-center gap-3 w-full p-4 rounded-2xl bg-white text-black text-[10px] font-black uppercase tracking-widest shadow-xl shadow-white/5"
                       >
                         <PlusCircle className="w-4 h-4" />
-                        Generate Account
+                        CREATE ACCOUNT
                       </Link>
                     </div>
                   )}
@@ -488,7 +507,7 @@ const HeaderContent = memo(() => {
         )}
       </AnimatePresence>
 
-      <div className="absolute bottom-0 left-4 right-4 h-[1px] bg-gradient-to-r from-transparent via-[var(--color-brand-pink)]/30 to-transparent"></div>
+      <div className="absolute bottom-0 left-4 right-4 h-[1px] bg-gradient-to-r from-transparent via-[var(--color-brand-pink)]/50 to-transparent"></div>
 
       <AnimatePresence>
         {isSwitching && (

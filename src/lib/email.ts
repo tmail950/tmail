@@ -106,7 +106,7 @@ export const emailService = {
                 <p style="margin: 0; color: #92400e; font-weight: 700; font-size: 12px; text-transform: uppercase;">User Email:</p>
                 <p style="margin: 5px 0 0 0; color: #000; font-family: monospace; font-size: 18px;">${userEmail}</p>
               </div>
-              <p style="color: #666; font-size: 13px;">Please verify the user's identity and provide them with a new secret key manually via your established secure channels.</p>
+              <p style="color: #666; font-size: 13px;">Please verify the user's identity and provide them with a new password manually via your established secure channels.</p>
               <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;" />
               <p style="color: #cbd5e1; font-size: 10px; text-align: center;">© 2026 TMAIL.PK Security Nodes</p>
             </div>

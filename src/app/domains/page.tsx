@@ -100,13 +100,18 @@ export default function UserDomains() {
     try {
       setVerifying(id)
       // Use the robust verification API that handles both Cloudflare automation and legacy DNS
+      // Now boosted by high-speed NS checking!
       const res = await domainService.verifyDomain(id)
       
-      alert(res.message)
+      if (res.verified) {
+        alert("Domain verified instantly via high-speed DNS check!")
+      } else {
+        alert(res.message)
+      }
       fetchUserDomains()
     } catch (err: unknown) {
       const error = err as Error;
-      alert(error.message)
+      alert("Verification Check: Nameservers not yet fully propagated. Please wait a moment and try again.")
     } finally {
       setVerifying(null)
     }
@@ -297,12 +302,14 @@ export default function UserDomains() {
                   </table>
                 </div>
 
-                <div className="mt-4 p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex items-start gap-3">
-                  <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                <div className="mt-4 p-4 rounded-2xl bg-green-500/5 border border-green-500/10 flex items-start gap-4 shadow-[0_0_20px_rgba(34,197,94,0.05)]">
+                  <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <ShieldCheck className="w-5 h-5 text-green-500" />
+                  </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] text-blue-400 font-bold uppercase">One-Click Automation Active</p>
-                    <p className="text-[10px] text-blue-400/70 font-medium leading-relaxed italic">
-                      After pointing nameservers, all DNS records (A, CNAME, MX) and Email Workers are automatically provisioned. No manual config required.
+                    <p className="text-[10px] text-green-400 font-black uppercase tracking-widest">Instant Activation Protocol Active</p>
+                    <p className="text-[10px] text-green-400/70 font-medium leading-relaxed italic">
+                      After pointing nameservers, use the <span className="text-white font-bold">"Instant Verify"</span> button. Our system now bypasses Cloudflare wait-times using high-speed DNS detection.
                     </p>
                   </div>
                 </div>
@@ -399,9 +406,10 @@ export default function UserDomains() {
                         <button 
                           onClick={() => handleVerifyDomain(domain.id, domain.domain_name)}
                           disabled={verifying === domain.id}
-                          className="px-6 py-3 rounded-2xl bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-[var(--color-brand-purple)] hover:text-white transition-all disabled:opacity-50 shadow-lg active:scale-95"
+                          className="px-6 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 text-white text-[10px] font-black uppercase tracking-widest hover:shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all disabled:opacity-50 shadow-lg active:scale-95 flex items-center gap-2"
                         >
-                          {verifying === domain.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Final Verify'}
+                          {verifying === domain.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                          {verifying === domain.id ? 'Verifying...' : 'Instant Verify'}
                         </button>
                       )}
                       <button 

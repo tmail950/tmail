@@ -69,29 +69,30 @@ export const domainService = {
 
   async getStats() {
     try {
-      // Get total domains count
-      const { count: domainsCount } = await supabase
-        .from('user_domains')
-        .select('*', { count: 'exact', head: true })
+      // 1. Total mailboxes (User + Guest)
+      const [{ count: userCount }, { count: guestCount }] = await Promise.all([
+        supabase.from('user_emails').select('*', { count: 'exact', head: true }),
+        supabase.from('guest_mailboxes').select('*', { count: 'exact', head: true })
+      ]);
 
-      // Get total verified domains
+      // 2. Total messages received
+      const { count: messagesCount } = await supabase
+        .from('emails')
+        .select('*', { count: 'exact', head: true });
+
+      // 3. Active domains
       const { count: verifiedCount } = await supabase
         .from('user_domains')
         .select('*', { count: 'exact', head: true })
-        .eq('is_verified', true)
-
-      // Get total emails processed
-      const { count: emailsCount } = await supabase
-        .from('emails')
-        .select('*', { count: 'exact', head: true })
+        .eq('is_verified', true);
 
       return {
-        totalDomains: domainsCount || 0,
+        totalMailboxes: (userCount || 0) + (guestCount || 0),
         activeDomains: verifiedCount || 0,
-        totalEmails: emailsCount || 0
+        totalMessages: messagesCount || 0
       }
     } catch (e) {
-      return { totalDomains: 0, activeDomains: 0, totalEmails: 0 }
+      return { totalMailboxes: 0, activeDomains: 0, totalMessages: 0 }
     }
   },
 
@@ -389,7 +390,7 @@ export const domainService = {
         }
         return existingGuest;
       } else {
-        throw new Error('This address is already managed by a different secret key.');
+        throw new Error('This address is already managed by a different password.');
       }
     }
 

@@ -23,26 +23,27 @@ const EmptyState = memo(({ isSaved = true }: EmptyStateProps) => {
         }}
         className="relative"
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-[--color-brand-pink] to-[--color-brand-orange] blur-3xl opacity-20 rounded-full scale-150"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-brand-pink)] to-transparent blur-3xl opacity-30 rounded-full scale-110"></div>
+        <div className="absolute inset-0 bg-[var(--color-brand-pink)]/10 blur-xl rounded-full scale-90"></div>
         <div className={`w-24 h-24 rounded-3xl glass-card flex items-center justify-center relative z-10 border transition-all duration-700 ${!isSaved ? 'border-[--color-brand-pink]/40 shadow-[0_0_30px_var(--color-brand-pink)]/20' : 'border-white/10'}`}>
           <Inbox className={`w-10 h-10 ${!isSaved ? 'text-[--color-brand-pink] animate-bounce' : 'text-gray-500 animate-pulse'}`} />
         </div>
         
         {/* Floating Particles */}
         <motion.div 
-          animate={{ y: [-20, -40], x: [-10, 10], opacity: [0, 1, 0] }}
+          animate={{ y: [-20, -40], x: [-10, 10], opacity: [0, 0.4, 0] }}
           transition={{ duration: 3, repeat: Infinity, delay: 0.5 }}
-          className="absolute -top-4 -right-4 w-3 h-3 rounded-full bg-[--color-brand-purple] blur-[2px]"
+          className="absolute -top-4 -right-4 w-1.5 h-1.5 rounded-full bg-[var(--color-brand-pink)] opacity-50 blur-[1px]"
         />
         <motion.div 
-          animate={{ y: [0, -30], x: [10, -20], opacity: [0, 1, 0] }}
+          animate={{ y: [0, -30], x: [10, -20], opacity: [0, 0.4, 0] }}
           transition={{ duration: 4, repeat: Infinity, delay: 1.2 }}
-          className="absolute top-10 -left-6 w-2 h-2 rounded-full bg-[--color-brand-orange] blur-[1px]"
+          className="absolute top-10 -left-6 w-1 h-1 rounded-full bg-[var(--color-brand-purple)] opacity-50 blur-[1px]"
         />
         <motion.div 
-          animate={{ y: [10, -20], x: [0, 15], opacity: [0, 1, 0] }}
+          animate={{ y: [10, -20], x: [0, 15], opacity: [0, 0.4, 0] }}
           transition={{ duration: 3.5, repeat: Infinity, delay: 2 }}
-          className="absolute bottom-4 -right-8 w-4 h-4 rounded-full bg-[--color-brand-pink] blur-[3px]"
+          className="absolute bottom-4 -right-8 w-2 h-2 rounded-full bg-[var(--color-brand-pink)] opacity-50 blur-[2px]"
         />
       </motion.div>
       
@@ -62,7 +63,7 @@ const EmptyState = memo(({ isSaved = true }: EmptyStateProps) => {
         className="mt-3 text-gray-400 max-w-sm"
       >
         {!isSaved 
-          ? "This TMAIL.PK address is not yet reserved. Click 'REGENERATE' to begin receiving mail."
+          ? "This TMAIL.PK address is not yet activated. Click 'REGENERATE' to begin receiving mail."
           : "Your temporary inbox is active. Send an email to your address and it will materialize here."}
       </motion.p>
       
@@ -73,7 +74,7 @@ const EmptyState = memo(({ isSaved = true }: EmptyStateProps) => {
         className="mt-8 flex items-center space-x-2 text-xs text-gray-500 font-mono uppercase tracking-widest"
       >
         <span className={`w-2 h-2 rounded-full ${!isSaved ? 'bg-orange-500 animate-ping' : 'bg-green-500 animate-pulse'}`}></span>
-        <span>{!isSaved ? "Offline / Not Reserved" : "Listening for incoming signals"}</span>
+        <span>{!isSaved ? "Offline / Not Activated" : "Listening for incoming signals"}</span>
       </motion.div>
     </div>
   );

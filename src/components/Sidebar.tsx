@@ -79,7 +79,7 @@ const SidebarItem = memo(({ email, isSelected, onSelect }: { email: Email, isSel
       {isSelected && (
         <motion.div 
           layoutId="active-indicator"
-          className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-[var(--color-brand-purple)] to-[var(--color-brand-pink)] shadow-[0_0_20px_var(--color-brand-pink)]"
+          className="absolute left-0 top-1 bottom-1 w-[3px] bg-[var(--color-brand-pink)] shadow-[4px_0_15px_rgba(0,210,255,0.6)] rounded-r-full"
         ></motion.div>
       )}
       

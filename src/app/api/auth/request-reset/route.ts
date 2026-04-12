@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { emailService } from '@/lib/email';
 
 export async function POST(req: Request) {
   try {
@@ -9,6 +7,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
+    // Dynamic imports
+    const { createAdminClient } = await import('@/lib/supabase/admin');
     const supabase = createAdminClient();
     
     // 1. Get Master Admin Email

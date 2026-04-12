@@ -1,5 +1,4 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 
 const COOKIE_OPTIONS: CookieOptions = {
   maxAge: 60 * 60 * 24 * 365, // 1 year session
@@ -8,7 +7,20 @@ const COOKIE_OPTIONS: CookieOptions = {
   sameSite: 'lax',
 }
 
+/**
+ * Creates a Supabase client for Server Components, Server Actions, and API routes.
+ * Strictly checks for server environment to prevent build-time boundary leakage.
+ */
 export async function createClient() {
+  // Environment guard: If this is called in the browser, redirect to the client-side creator
+  if (typeof window !== 'undefined') {
+    const { createClient: createBrowserClient } = await import('@/lib/supabase/client');
+    return createBrowserClient();
+  }
+
+  // Dynamic import of next/headers is mandatory to prevent Turbopack from tracing 
+  // this module into the client bundle at build time.
+  const { cookies } = await import('next/headers');
   const cookieStore = await cookies()
 
   return createServerClient(

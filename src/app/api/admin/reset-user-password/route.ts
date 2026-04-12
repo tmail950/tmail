@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function POST(req: Request) {
   try {
@@ -8,6 +7,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Dynamic imports to strictly isolate server logic from build-time tracing
+    const { createAdminClient } = await import('@/lib/supabase/admin');
     const supabase = createAdminClient();
 
     // 1. Check if email belongs to a guest mailbox

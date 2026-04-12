@@ -1,9 +1,11 @@
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 export async function DELETE() {
   try {
+    // Dynamic imports to strictly isolate server logic from build-time tracing
+    const { createClient } = await import('@/lib/supabase/server')
+    const { createAdminClient } = await import('@/lib/supabase/admin')
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -12,7 +14,6 @@ export async function DELETE() {
     }
 
     const adminClient = createAdminClient()
-    const userEmail = user.email
 
     // 1. Fetch all reserved holographic addresses
     const { data: reservedAddresses } = await adminClient
@@ -37,7 +38,7 @@ export async function DELETE() {
       }
     }
 
-    // 2. Delete the user from auth.users (this will cascade to other tables if ON DELETE CASCADE is set)
+    // 3. Delete the user from auth.users (this will cascade to other tables if ON DELETE CASCADE is set)
     const { error: userDeleteError } = await adminClient.auth.admin.deleteUser(user.id)
 
     if (userDeleteError) {

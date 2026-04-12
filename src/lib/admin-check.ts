@@ -3,8 +3,6 @@ import { createClient } from '@/lib/supabase/client';
 const MASTER_ADMINS = [
   'info369skills@gmail.com',
   'danubaba369@gmail.com',
-  'Admin@tmail.pk',
-  'master@tmail.pk'
 ];
 
 export async function isMasterAdmin(email: string | undefined): Promise<boolean> {

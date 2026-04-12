@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { cloudflare } from '@/lib/cloudflare';
 
 export async function POST(request: Request) {
   try {
+    // Dynamic imports to prevent boundary leakage errors in App Router
+    const { createClient } = await import('@/lib/supabase/server');
+    const { cloudflare } = await import('@/lib/cloudflare');
+    const { isMasterAdmin } = await import('@/lib/admin-check');
+    const { fastNSCheck } = await import('@/lib/dnsCheck');
+
     const supabase = await createClient();
     const { domainName } = await request.json();
 
@@ -18,24 +22,23 @@ export async function POST(request: Request) {
       .select('*', { count: 'exact', head: true })
       .eq('user_id', session.user.id);
 
-    if (countError) {
-    } else if (count !== null && count >= 9) {
+    if (!countError && count !== null && count >= 9) {
       return NextResponse.json(
         { message: 'Domain limit reached. You can add up to 9 domains.' },
         { status: 403 }
       );
     }
 
-    // 2. Check site settings for auto-approval
+    // 2. Auth Check & Clean Domain
+    const isAdmin = await isMasterAdmin(session.user.email);
     const { data: autoApproveSetting } = await supabase
       .from('site_settings')
       .select('value')
       .eq('key', 'auto_approve_domains')
       .maybeSingle();
     
-    const isAutoApprove = autoApproveSetting?.value === 'true';
+    const isAutoApprove = autoApproveSetting?.value === 'true' || isAdmin;
 
-    // 1. Clean domain name
     const cleanDomain = domainName
       .toLowerCase()
       .trim()
@@ -43,121 +46,87 @@ export async function POST(request: Request) {
       .replace(/\/$/, '')
       .split('/')[0];
 
-    // 2. Generate Verification Token
     const verificationToken = `TMAIL.PK-verify-${Math.random().toString(36).substring(2, 15)}`;
 
-    // Use unified admin check
-    const { isMasterAdmin } = await import('@/lib/admin-check');
-    const isAdmin = await isMasterAdmin(session.user.email);
-
-    if (!isAutoApprove && !isAdmin) {
+    if (!isAutoApprove) {
       // Manual approval mode: Just insert the domain as pending
       const { data: domain, error: insertError } = await supabase
         .from('user_domains')
-        .insert([
-          {
-            domain_name: cleanDomain,
-            verification_token: verificationToken,
-            user_id: session.user.id,
-            admin_approval: 'pending',
-            cloudflare_status: 'pending',
-            is_verified: false
-          }
-        ])
-        .select()
-        .single();
-
-      if (insertError) {
-        return NextResponse.json({ message: insertError.message }, { status: 500 });
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: 'Domain submitted for admin approval.',
-        domain
-      });
-    }
-
-    // 3. Create Zone in Cloudflare (Auto-approval flow)
-    let zone;
-    try {
-      console.log(`DOMAIN SETUP: Processing [${cleanDomain}] for user [${session.user.email}]`);
-      
-      // First, try to find if it already exists to avoid unnecessary create calls
-      zone = await cloudflare.findZoneByName(cleanDomain);
-      
-      if (!zone) {
-        console.log(`DOMAIN SETUP: Zone not found, creating new Cloudflare zone...`);
-        zone = await cloudflare.createZone(cleanDomain);
-      } else {
-        console.log(`DOMAIN SETUP: Existing zone found in Cloudflare, reusing ID: ${zone.id}`);
-      }
-    } catch (error: any) {
-      console.error(`DOMAIN SETUP: Cloudflare failure for [${cleanDomain}]:`, error.message);
-      let errorMsg = error.message;
-      if (errorMsg.includes('Invalid access token')) {
-        errorMsg = "Cloudflare error: Invalid access token. Please verify your CLOUDFLARE_API_TOKEN in Netlify Site Settings.";
-      }
-      return NextResponse.json({ message: errorMsg }, { status: 500 });
-    }
-
-    // 4. Insert into Supabase
-    const { data: domain, error: insertError } = await supabase
-      .from('user_domains')
-      .insert([
-        {
+        .insert([{
           domain_name: cleanDomain,
           verification_token: verificationToken,
           user_id: session.user.id,
-          cloudflare_zone_id: zone.id,
-          cloudflare_nameservers: zone.name_servers,
-          cloudflare_status: zone.status === 'active' ? 'active' : 'pending',
-          is_verified: zone.status === 'active',
-          admin_approval: 'approved'
-        }
-      ])
+          admin_approval: 'pending',
+          cloudflare_status: 'pending',
+          is_verified: false
+        }])
+        .select()
+        .single();
+
+      if (insertError) return NextResponse.json({ message: insertError.message }, { status: 500 });
+      return NextResponse.json({ success: true, message: 'Domain submitted for admin approval.', domain });
+    }
+
+    // 3. Create/Find Zone in Cloudflare
+    console.log(`DOMAIN SETUP: Processing [${cleanDomain}] for user [${session.user.email}]`);
+    let zone;
+    try {
+      zone = await cloudflare.findZoneByName(cleanDomain);
+      if (!zone) {
+        zone = await cloudflare.createZone(cleanDomain);
+      }
+    } catch (error: any) {
+      console.error(`DOMAIN SETUP: Cloudflare failure for [${cleanDomain}]:`, error.message);
+      return NextResponse.json({ message: `Cloudflare setup failed: ${error.message}` }, { status: 500 });
+    }
+
+    // 4. INSTANT NS CHECK: Detect if nameservers are already pointed
+    const isAlreadyPointed = await fastNSCheck(cleanDomain);
+    
+    const status = (zone.status === 'active' || isAlreadyPointed) ? 'active' : 'pending';
+    const isVerified = status === 'active';
+
+    // 5. Insert into Supabase
+    const { data: domain, error: insertError } = await supabase
+      .from('user_domains')
+      .insert([{
+        domain_name: cleanDomain,
+        verification_token: verificationToken,
+        user_id: session.user.id,
+        cloudflare_zone_id: zone.id,
+        cloudflare_nameservers: zone.name_servers,
+        cloudflare_status: status,
+        is_verified: isVerified,
+        admin_approval: 'approved'
+      }])
       .select()
       .single();
 
-    if (insertError) {
-      return NextResponse.json({ message: insertError.message }, { status: 500 });
-    }
+    if (insertError) return NextResponse.json({ message: insertError.message }, { status: 500 });
 
-    // 5. Optional: Add the TXT record and setup Routing if Active
-    try {
-      await cloudflare.addVerificationTXT(zone.id, verificationToken);
-      
-      // NEW: If zone is already active (reused or fast-pointed), automate routing immediately
-      if (zone.status === 'active') {
-        console.log(`DOMAIN SETUP: Zone [${cleanDomain}] is already ACTIVE. Automating routing...`);
-        const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'TMAIL.PK-email-worker';
-        
-        // Setup DNS first
-        await cloudflare.setupEmailDNS(zone.id);
-        await cloudflare.setupGeneralDNS(zone.id, cleanDomain);
-        
-        // Setup Routing
-        await cloudflare.setupEmailRouting(zone.id, workerName);
-
-        // Update DB status to active since we just successfully provisioned it
-        await supabase
-          .from('user_domains')
-          .update({ 
-            cloudflare_status: 'active',
-            is_verified: true 
-          })
-          .eq('id', domain.id);
-          
-        console.log(`DOMAIN SETUP: Automation finalized for [${cleanDomain}]`);
+    // 6. Automation (Don't await fully to return response faster)
+    (async () => {
+      try {
+        await cloudflare.addVerificationTXT(zone.id, verificationToken);
+        if (isVerified) {
+          console.log(`DOMAIN SETUP: Instant Activation for [${cleanDomain}]`);
+          const workerName = process.env.CLOUDFLARE_WORKER_NAME || 'TMAIL.PK-email-worker';
+          await Promise.all([
+            cloudflare.setupEmailDNS(zone.id),
+            cloudflare.setupGeneralDNS(zone.id, cleanDomain)
+          ]);
+          await cloudflare.setupEmailRouting(zone.id, workerName);
+        }
+      } catch (e) {
+        console.warn(`DOMAIN SETUP: Background sync failed for [${cleanDomain}]`, e);
       }
-    } catch (e) {
-      console.warn(`DOMAIN SETUP: Background automation (Best effort) failed:`, e);
-    }
+    })();
 
     return NextResponse.json({
       success: true,
       domain,
-      nameservers: zone.name_servers
+      nameservers: zone.name_servers,
+      isVerified
     });
 
   } catch (error: any) {

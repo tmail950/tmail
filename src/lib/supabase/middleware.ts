@@ -77,7 +77,7 @@ export async function updateSession(request: NextRequest) {
   const isHomePath = request.nextUrl.pathname === '/'
   const isIngestPath = request.nextUrl.pathname.startsWith('/api/ingest')
   const isPublicApiPath = request.nextUrl.pathname.startsWith('/api/domains')
-  const isPublicContent = ['/terms', '/privacy', '/safety', '/icon.svg'].includes(request.nextUrl.pathname)
+  const isPublicContent = ['/terms', '/privacy', '/safety', '/icon.svg', '/cards'].includes(request.nextUrl.pathname)
   const isAdminPath = request.nextUrl.pathname.startsWith('/admin')
 
   // Skip getUser for truly public APIs, static content, and the master admin portal
@@ -94,7 +94,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   // 1. If NO user and trying to access protected routes, redirect to login
-  if (!user && !isLoginPath && !isAuthPath && !isHomePath) {
+  if (!user && !isLoginPath && !isAuthPath && !isHomePath && !isPublicContent) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     
@@ -108,8 +108,8 @@ export async function updateSession(request: NextRequest) {
   }
 
   // 2. If user IS authenticated and trying to access login, redirect to dashboard (/)
-  // EXCEPT if they are explicitly trying to sign up for a NEW profile (Add Profile flow)
-  const isAddingProfile = request.nextUrl.searchParams.get('signup') === 'true'
+  // EXCEPT if they are explicitly trying to sign up or log in to a NEW profile (Add Profile flow)
+  const isAddingProfile = request.nextUrl.searchParams.get('signup') === 'true' || request.nextUrl.searchParams.get('add') === 'true'
   
   if (user && isLoginPath && !isAddingProfile) {
     const url = request.nextUrl.clone()

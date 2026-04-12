@@ -34,7 +34,7 @@ const Footer = memo(() => {
               href="https://369aiventures.com" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-[var(--color-brand-purple)] hover:text-[var(--color-brand-pink)] underline decoration-dotted underline-offset-4 transition-all"
+              className="text-[var(--color-brand-pink)] hover:brightness-125 underline decoration-dotted underline-offset-4 transition-all"
             >
               369AIVentures.com
             </a>
@@ -42,9 +42,9 @@ const Footer = memo(() => {
         </div>
 
         <div className="flex items-center gap-2 mt-2 opacity-30 group">
-            <div className="w-8 h-[1px] bg-white/10 group-hover:w-12 transition-all"></div>
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-pink)] animate-pulse"></div>
-            <div className="w-8 h-[1px] bg-white/10 group-hover:w-12 transition-all"></div>
+            <div className="w-8 h-[1px] bg-white/5 group-hover:w-16 transition-all duration-700"></div>
+            <div className="w-1 h-1 rounded-full bg-[var(--color-brand-pink)] shadow-[0_0_8px_rgba(0,210,255,0.8)]"></div>
+            <div className="w-8 h-[1px] bg-white/5 group-hover:w-16 transition-all duration-700"></div>
         </div>
       </div>
     </footer>

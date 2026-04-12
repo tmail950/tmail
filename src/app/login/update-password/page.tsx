@@ -89,7 +89,7 @@ function UpdatePasswordContent() {
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
-                  placeholder="New Secret Key"
+                  placeholder="New Password"
                   required
                   autoComplete="new-password"
                   value={password}

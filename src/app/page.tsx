@@ -24,7 +24,7 @@ function generateRandomString(length: number) {
 }
 
 function generateRandomPassword() {
-  return Math.random().toString(36).slice(-6);
+  return Math.random().toString(36).slice(2, 10);
 }
 
 export default function Home() {
@@ -50,6 +50,8 @@ export default function Home() {
   const [regenCount, setRegenCount] = useState<number>(0);
   const lastActivatedAddr = useRef<string | null>(null);
   const hasInitialized = useRef(false);
+  const [guestTimeLeft, setGuestTimeLeft] = useState<number | null>(null);
+  const [isGuestSessionExpired, setIsGuestSessionExpired] = useState(false);
 
   // 2. Memoized Values
   const address = useMemo(() => {
@@ -200,7 +202,7 @@ export default function Home() {
     
     if (!user) {
       if (!targetAddress || !targetPassword) {
-        setSaveError("Please set a Secret Key to activate your mailbox.");
+        setSaveError("Please set a Password to activate your mailbox.");
         return;
       }
       
@@ -324,10 +326,7 @@ export default function Home() {
     const limit = isPremium ? 9 : 4;
 
     if (userEmails.length >= limit) {
-      const msg = user 
-        ? "You have reached the limit of 9 emails." 
-        : `Limit reached (Max ${limit}). Create an account for more.`;
-      setSaveError(msg);
+      setSaveError("Limit reached");
       return;
     }
 
@@ -338,11 +337,21 @@ export default function Home() {
     }
 
     const newPrefix = generateAsianName();
+    const newPassword = generateRandomPassword();
+    const newDomain = verifiedDomains.length > 0 
+      ? verifiedDomains[Math.floor(Math.random() * verifiedDomains.length)].domain_name 
+      : selectedDomain;
+
     setPrefix(newPrefix);
+    setSelectedDomain(newDomain);
+    setMailboxPassword(newPassword);
     
     // Set manual switch flag to prevent the 'Active Address' reset logic from interfering
     if (user) {
       localStorage.setItem('TMAIL.PK_switched_manually', 'true');
+    } else if (tabId) {
+      localStorage.setItem(`TMAIL.PK_guest_password_${tabId}`, newPassword);
+      localStorage.setItem("TMAIL.PK_guest_password", newPassword);
     }
 
     if (user?.email && !selectedDomain && verifiedDomains.length > 0) {
@@ -360,7 +369,7 @@ export default function Home() {
     setIsAuto(true);
     if (explicit) setIsFirstLoad(false); 
     lastActivatedAddr.current = null; 
-    setMailboxPassword(generateRandomPassword());
+    // Manual password setting combined in top of function for atomicity
     setShowSuccess(false);
     setSaveError(null);
   }, [user, isSavingEmail, regenCount, tabId, verifiedDomains, selectedDomain, userEmails.length]);
@@ -480,12 +489,64 @@ export default function Home() {
       setPrefix(loginPrefix);
       setSelectedDomain(loginDom);
       setIsAuto(false);
+      localStorage.setItem('TMAIL.PK_switched_manually', 'true');
     }
   }, [user, userEmails, authLoading, address]);
 
   useEffect(() => {
     setIsInitialLoading(false);
   }, []);
+
+  // Guest Session Timer Logic (10 Minutes)
+  useEffect(() => {
+    // Hide timer only for registered users or those who have ENTERED a password on the login page
+    if (user || localStorage.getItem("TMAIL.PK_is_premium_access") === "true") {
+      setGuestTimeLeft(null);
+      return;
+    }
+
+    // Initialize timer for guest
+    if (guestTimeLeft === null && !isGuestSessionExpired) {
+      const storedStartTime = localStorage.getItem("TMAIL.PK_guest_session_start");
+      const now = Date.now();
+      
+      if (storedStartTime) {
+        const elapsed = Math.floor((now - parseInt(storedStartTime)) / 1000);
+        const remaining = 600 - elapsed;
+        if (remaining <= 0) {
+          setGuestTimeLeft(0);
+        } else {
+          setGuestTimeLeft(remaining);
+        }
+      } else {
+        localStorage.setItem("TMAIL.PK_guest_session_start", now.toString());
+        setGuestTimeLeft(600);
+      }
+    }
+
+    if (guestTimeLeft !== null && guestTimeLeft > 0) {
+      const timer = setInterval(() => {
+        setGuestTimeLeft(prev => (prev !== null && prev > 0) ? prev - 1 : 0);
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+
+    if (guestTimeLeft === 0 && !isGuestSessionExpired) {
+      setIsGuestSessionExpired(true);
+      // "Zero out" the system for guest
+      localStorage.removeItem("TMAIL.PK_guest_history");
+      localStorage.removeItem("TMAIL.PK_guest_password");
+      localStorage.removeItem("TMAIL.PK_last_confirmed_email");
+      localStorage.removeItem("TMAIL.PK_guest_activated");
+      localStorage.removeItem("TMAIL.PK_guest_session_start");
+      
+      // Clear tab-specific storage too
+      if (tabId) {
+        localStorage.removeItem(`TMAIL.PK_active_email_${tabId}`);
+        localStorage.removeItem(`TMAIL.PK_guest_password_${tabId}`);
+      }
+    }
+  }, [user, authLoading, guestTimeLeft, isGuestSessionExpired, tabId]);
 
   useEffect(() => {
     if (!tabId || hasInitialized.current || authLoading || isDomainLoading) return;
@@ -528,31 +589,36 @@ export default function Home() {
 
     if (globalActive || forceNew === "true" || !effectiveAddress || !effectiveAddress.includes("@") || authSuccess) {
       if (authSuccess && user && verifiedDomains.length > 0) {
-        // Prioritize the email the user actually logged in with if available
-        const loginTarget = (globalActive && globalActive.includes("@")) ? globalActive : user.email;
+        // PRIORITIZE: Any existing custom emails from user_emails first!
+        // This ensures the custom email like 'kkk88@qammify.sbs' survives logout/login.
+        const firstCustom = userEmails.length > 0 ? userEmails[0].email_address : null;
+        const loginTarget = firstCustom || (globalActive && globalActive.includes("@") ? globalActive : user.email);
+        
         if (loginTarget) {
           const [loginPrefix, loginDom] = loginTarget.split('@');
           const cleanPrefix = loginPrefix.toLowerCase().replace(/[^a-z0-9]/g, '');
           
-          if (verifiedDomains.some(d => d.domain_name === loginDom)) {
+          if (loginDom) {
             setPrefix(cleanPrefix);
             setSelectedDomain(loginDom);
             setIsAuto(false);
             
-            // Check if we already have a password for this one
-            // If no DB password found yet, use a new randomized one
-            const defaultPass = generateRandomPassword();
+            // Priority: Match database password for this address
+            const dbMatch = userEmails.find((e: any) => e.email_address?.toLowerCase() === loginTarget.toLowerCase());
+            const storedPass = dbMatch?.password || localStorage.getItem("TMAIL.PK_guest_password");
+            const finalPass = storedPass || generateRandomPassword();
             
-            setMailboxPassword(defaultPass);
-            // Check if we actually need to save this (if it's not already in userEmails)
+            setMailboxPassword(finalPass);
+            
             setTimeout(() => {
               const currentEmails = JSON.parse(JSON.stringify(userEmails)); 
               const isAlreadyOwned = currentEmails.some((e: any) => e.email_address?.toLowerCase() === loginTarget.toLowerCase());
               
               if (!isAlreadyOwned) {
-                handleSaveEmail(true, loginTarget, defaultPass);
+                handleSaveEmail(true, loginTarget, finalPass);
               }
-              localStorage.removeItem("TMAIL.PK_active_email"); // Clear global after sync
+              localStorage.removeItem("TMAIL.PK_active_email"); 
+              localStorage.setItem('TMAIL.PK_switched_manually', 'true');
             }, 1000);
             hasInitialized.current = true;
           } else {
@@ -568,12 +634,13 @@ export default function Home() {
         setIsAuto(false);
         hasInitialized.current = true;
         
-        const storedPass = localStorage.getItem(passwordKey) || localStorage.getItem("TMAIL.PK_guest_password");
+        // Priority: Match database password if available
+        const dbPass = userEmails.find((e: any) => e.email_address?.toLowerCase() === effectiveAddress?.toLowerCase())?.password;
+        const storedPass = dbPass || localStorage.getItem(passwordKey) || localStorage.getItem("TMAIL.PK_guest_password");
         if (storedPass) setMailboxPassword(storedPass);
         
-        // Removed: Manual setUserEmails call here. fetchUserEmails() will handle this centrally.
-
-        // After syncing to state, we can clear the global one so next tab doesn't steal it incorrectly
+        localStorage.setItem('TMAIL.PK_switched_manually', 'true');
+        // Clear global session after sync is fully established
         setTimeout(() => localStorage.removeItem("TMAIL.PK_active_email"), 2000);
       } else if (user && userEmails.length > 0) {
         const [storedPrefix, storedDom] = userEmails[0].email_address.split("@");
@@ -654,7 +721,13 @@ export default function Home() {
     const isManualSwitch = localStorage.getItem('TMAIL.PK_switched_manually') === 'true';
 
     // Only stabilize/randomize the domain if it's truly missing or invalid AND we didn't just manually switch to it
-    if (!targetDomain || (!isManualSwitch && !verifiedDomains.some(d => d.domain_name === targetDomain))) {
+    const sessionEmail = localStorage.getItem("TMAIL.PK_active_email");
+    const sessionDomain = (sessionEmail && sessionEmail.includes('@')) ? sessionEmail.split('@')[1] : null;
+
+    if (sessionDomain) {
+      // FORCE use of session domain if we just logged in or switched
+      targetDomain = sessionDomain;
+    } else if (!targetDomain || (!isManualSwitch && !verifiedDomains.some(d => d.domain_name === targetDomain))) {
        if (user?.email) {
           targetDomain = user.email.split('@')[1];
        } else {
@@ -714,6 +787,15 @@ export default function Home() {
     }
   }, [mailboxPassword, tabId]);
 
+  useEffect(() => {
+    if (selectedEmailId) {
+      document.documentElement.classList.add('is-reading-mail');
+    } else {
+      document.documentElement.classList.remove('is-reading-mail');
+    }
+    return () => document.documentElement.classList.remove('is-reading-mail');
+  }, [selectedEmailId]);
+
   const isAddressSaved = useMemo(() => {
     if (address.toLowerCase() === user?.email?.toLowerCase()) return true; // Identity is always "saved"
     return userEmails.some(e => e.email_address === address);
@@ -743,10 +825,37 @@ export default function Home() {
             </p>
           </motion.div>
         )}
+
+        {isGuestSessionExpired && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-[250] bg-[#050505]/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-center"
+          >
+            <div className="w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center mb-8 animate-pulse border border-red-500/20 relative">
+              <div className="absolute inset-0 bg-red-500/20 blur-2xl rounded-full"></div>
+              <Loader2 className="w-10 h-10 text-red-500 relative z-10" />
+            </div>
+            <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-4 italic">
+              Guest Session Expired
+            </h2>
+            <p className="text-gray-400 max-w-sm mb-10 font-medium leading-relaxed text-sm">
+              Your 10-minute guest security session has concluded. Previous temporary access has been zeroed out.
+              <br/><br/>
+              <span className="text-[var(--color-brand-pink)] uppercase tracking-widest text-[10px] font-black italic">Credentials required for re-access</span>
+            </p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-16 py-5 bg-white text-black rounded-3xl font-black uppercase tracking-[0.2em] text-[11px] hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(255,255,255,0.1)] active:shadow-none"
+            >
+              Refresh System
+            </button>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       <div className="flex flex-col h-[calc(100vh-60px)] w-full max-w-7xl mx-auto space-y-2 flex-1 px-4 sm:px-0">
-        <div className="flex-0 flex flex-col items-center justify-start pt-1 pb-1 sm:pt-2 sm:pb-1">
+        <div className="flex-0 flex flex-col items-center justify-start pt-10 pb-1 sm:pt-12 sm:pb-1">
           {user && (
             <motion.button 
               whileHover={{ scale: 1.02 }}
@@ -754,7 +863,7 @@ export default function Home() {
               onClick={() => user.email && handleSwitchEmail(user.email)}
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-1 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 hover:bg-white/10 hover:text-white hover:border-[var(--color-brand-pink)]/50 transition-all cursor-pointer shadow-lg hover:shadow-[var(--color-brand-pink)]/10"
+              className="mt-2 mb-4 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 hover:bg-white/10 hover:text-white hover:border-[var(--color-brand-pink)]/50 transition-all cursor-pointer shadow-lg hover:shadow-[var(--color-brand-pink)]/10"
             >
               Account Active: <span className="text-[var(--color-brand-pink)]">{user.email}</span>
             </motion.button>
@@ -790,6 +899,7 @@ export default function Home() {
             sessionExpired={sessionExpired}
             onSimulate={handleSimulateEmail}
             isIdentity={address.toLowerCase() === user?.email?.toLowerCase()}
+            guestTimeLeft={guestTimeLeft}
           />
         </div>
 
@@ -821,7 +931,7 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 bg-black/80 backdrop-blur-md"
+              className="fixed inset-0 z-[500] flex items-center justify-center p-0 sm:p-4 bg-black/95 backdrop-blur-2xl"
               onClick={() => setSelectedEmailId(null)}
             >
               <motion.div
@@ -829,7 +939,7 @@ export default function Home() {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 40 }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className="w-full max-w-5xl h-full max-h-[90vh] relative"
+                className="w-full max-w-6xl h-full sm:h-[92vh] relative"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="absolute -inset-1 bg-gradient-to-r from-[var(--color-brand-purple)] via-[var(--color-brand-pink)] to-[var(--color-brand-orange)] rounded-[40px] blur-2xl opacity-40 animate-pulse-glow pointer-events-none"></div>

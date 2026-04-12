@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient as createServerClient } from '@/lib/supabase/server'
-import { domainService } from '@/services/domainService'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
+    // Dynamic imports to strictly isolate server logic from build-time tracing
+    const { createClient: createServerClient } = await import('@/lib/supabase/server')
+    const { createAdminClient } = await import('@/lib/supabase/admin')
+    const { isMasterAdmin } = await import('@/lib/admin-check')
+
     const supabase = await createServerClient()
     const { data: { session } } = await supabase.auth.getSession()
 
@@ -15,7 +17,6 @@ export async function GET() {
     }
 
     // 1. Verify Master Admin Authorization
-    const { isMasterAdmin } = await import('@/lib/admin-check');
     if (!await isMasterAdmin(session.user.email)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }

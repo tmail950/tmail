@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient as createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const supabaseAdmin = createAdminClient();
-  const supabase = await createServerClient();
-  
   try {
+    // Dynamic imports to strictly isolate server logic from build-time tracing
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const { createClient: createServerClient } = await import('@/lib/supabase/server');
+
+    const supabaseAdmin = createAdminClient();
+    const supabase = await createServerClient();
+    
     // 1. Get current session with a timeout to prevent 60s hangs
     const sessionPromise = supabase.auth.getSession();
     const timeoutPromise = new Promise((_, reject) => 
@@ -33,10 +35,14 @@ export async function GET() {
     const isAdmin = session?.user?.email && masterAdminEmails.includes(session.user.email.toLowerCase());
 
     if (isAdmin) {
-      // MASTER ADMIN: See everything that is verified
-      console.log(`API-DOMAINS-LIST: User ${session?.user?.email} is Master Admin. Showing all verified domains.`);
+      // MASTER ADMIN: See everything that is approved (even if not verified yet)
+      query = supabaseAdmin
+        .from('user_domains')
+        .select('id, domain_name, is_verified, created_at, user_id, admin_approval')
+        .eq('admin_approval', 'approved');
+      console.log(`API-DOMAINS-LIST: User ${session?.user?.email} is Master Admin. Showing all approved domains.`);
     } else if (session?.user?.id) {
-      // NORMAL USER: Approved OR owned by current user
+      // NORMAL USER: Approved OR owned by current user (but must be verified)
       query = query.or(`admin_approval.eq.approved,user_id.eq.${session.user.id}`);
     } else {
       // PUBLIC/GUEST: Only approved domains

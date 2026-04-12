@@ -23,9 +23,6 @@ export default function AdminSettings() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [activeTab, setActiveTab] = useState<'settings' | 'resets'>('settings')
-  const [resetRequests, setResetRequests] = useState<any[]>([])
-  const [resetingId, setResetingId] = useState<string | null>(null)
 
   // Master email change flow
   const [showEmailChange, setShowEmailChange] = useState(false)
@@ -34,7 +31,6 @@ export default function AdminSettings() {
   const [emailChangeOtp, setEmailChangeOtp] = useState('')
   const [emailChangeStep, setEmailChangeStep] = useState<'form' | 'verify'>('form')
   const [emailChangeSending, setEmailChangeSending] = useState(false)
-  const [devOtp, setDevOtp] = useState<string | null>(null)
   
   const supabase = createClient()
 
@@ -49,9 +45,6 @@ export default function AdminSettings() {
       window.location.href = '/admin'
       return
     }
-    
-    // In a real app, we'd check against the 'admins' table or a specific claim
-    // For this implementation, the /admin login already filtered them.
     setIsAdmin(true)
   }
 
@@ -59,11 +52,6 @@ export default function AdminSettings() {
     try {
       const data = await domainService.getSettings()
       setSettings(data)
-      
-      // Also fetch reset requests (simulated for now, or from a table if we add it)
-      // For now, let's assume we have a 'reset_requests' table
-      const { data: resets } = await supabase.from('reset_requests').select('*').order('created_at', { ascending: false });
-      setResetRequests(resets || [])
     } catch (e) {
       console.error(e)
     } finally {
@@ -101,8 +89,6 @@ export default function AdminSettings() {
       setMessage({ type: 'error', text: 'Enter new email and new password first.' })
       return
     }
-    
-    // Point 1: Direct update without OTP from dashboard
     confirmEmailChange("DIRECT_UPDATE");
   }
 
@@ -132,27 +118,6 @@ export default function AdminSettings() {
     }
   }
 
-  const handleResetPassword = async (email: string, id: string) => {
-    setResetingId(id)
-    try {
-      const newPass = Math.random().toString(36).slice(-8)
-      const res = await fetch('/api/admin/reset-user-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, newPassword: newPass, requestId: id })
-      })
-      
-      if (!res.ok) throw new Error((await res.json()).error)
-      
-      setMessage({ type: 'success', text: `Password reset to: ${newPass}. Please share this with the user.` })
-      fetchSettings()
-    } catch (e: any) {
-      setMessage({ type: 'error', text: e.message })
-    } finally {
-      setResetingId(null)
-    }
-  }
-
   if (!isAdmin || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#050505]">
@@ -178,26 +143,6 @@ export default function AdminSettings() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-2 px-1 py-1 rounded-2xl bg-white/5 border border-white/5">
-            <button 
-              onClick={() => setActiveTab('settings')}
-              className={`px-6 py-3 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all ${activeTab === 'settings' ? 'bg-red-500 text-white shadow-lg shadow-red-900/40' : 'text-gray-500 hover:text-white'}`}
-            >
-              Settings
-            </button>
-            <button 
-              onClick={() => setActiveTab('resets')}
-              className={`px-6 py-3 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all ${activeTab === 'resets' ? 'bg-red-500 text-white shadow-lg shadow-red-900/40 relative' : 'text-gray-500 hover:text-white'}`}
-            >
-              Reset Requests
-              {resetRequests.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-white text-red-600 rounded-full flex items-center justify-center text-[8px] font-black italic">
-                  {resetRequests.length}
-                </span>
-              )}
-            </button>
-          </div>
-
           <button 
             onClick={handleLogout}
             className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-red-500/50 transition-all font-black uppercase text-[10px] tracking-widest"
@@ -210,111 +155,74 @@ export default function AdminSettings() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Configuration */}
           <div className="lg:col-span-2 space-y-6">
-            {activeTab === 'settings' ? (
-              <section className="p-8 rounded-[40px] bg-[#0A0A0A] border border-white/5 shadow-2xl space-y-8">
-                <div className="flex items-center gap-3 pb-4 border-b border-white/5">
-                  <Settings className="w-5 h-5 text-red-500" />
-                  <h2 className="text-sm font-black text-white uppercase tracking-widest">Global Configuration</h2>
-                </div>
+            <section className="p-8 rounded-[40px] bg-[#0A0A0A] border border-white/5 shadow-2xl space-y-8">
+              <div className="flex items-center gap-3 pb-4 border-b border-white/5">
+                <Settings className="w-5 h-5 text-red-500" />
+                <h2 className="text-sm font-black text-white uppercase tracking-widest">Global Configuration</h2>
+              </div>
 
-                <div className="space-y-6">
-                  {/* Master Admin Email */}
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                      <Mail className="w-3 h-3" /> Master Admin Email
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="email"
-                        value={settings.admin_email || ''}
-                        readOnly
-                        className="flex-1 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 outline-none text-white font-mono text-sm cursor-not-allowed opacity-60"
-                      />
-                      <button
-                        onClick={() => setShowEmailChange(true)}
-                        className="px-4 py-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest border border-red-500/20 transition-all whitespace-nowrap"
-                      >
-                        Update Master Credentials
-                      </button>
-                    </div>
-                    <p className="text-[9px] text-gray-600 font-medium italic">Directly update the system's root identification. Changes take effect on next login.</p>
-                  </div>
-
-                  {/* Support Email */}
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                      <RefreshCw className="w-3 h-3" /> Public Support Email
-                    </label>
+              <div className="space-y-6">
+                {/* Master Admin Email */}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                    <Mail className="w-3 h-3" /> Master Admin Email
+                  </label>
+                  <div className="flex items-center gap-3">
                     <input
                       type="email"
-                      value={settings.support_email || ''}
-                      onChange={(e) => handleUpdateSetting('support_email', e.target.value)}
-                      placeholder="support@domain.com"
-                      className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-white/20 transition-all outline-none text-white text-sm"
+                      value={settings.admin_email || ''}
+                      readOnly
+                      className="flex-1 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 outline-none text-white font-mono text-sm cursor-not-allowed opacity-60"
                     />
+                    <button
+                      onClick={() => setShowEmailChange(true)}
+                      className="px-4 py-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest border border-red-500/20 transition-all whitespace-nowrap"
+                    >
+                      Update Master Credentials
+                    </button>
                   </div>
-
-                  {/* Site Name / Copy */}
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                      <LogOut className="w-3 h-3" /> Copyright Text
-                    </label>
-                    <input
-                      type="text"
-                      value={settings.copyright_text || ''}
-                      onChange={(e) => handleUpdateSetting('copyright_text', e.target.value)}
-                      className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-white/20 transition-all outline-none text-white text-sm"
-                    />
-                  </div>
+                  <p className="text-[9px] text-gray-600 font-medium italic">Directly update the system's root identification. Changes take effect on next login.</p>
                 </div>
 
-                <div className="pt-8">
-                  <button
-                    onClick={saveSettings}
-                    disabled={saving}
-                    className="w-full flex items-center justify-center gap-3 py-5 rounded-3xl bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-[0.2em] text-[11px] shadow-xl shadow-red-900/20 active:scale-[0.98] transition-all disabled:opacity-50"
-                  >
-                    {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                    Deploy Policy Changes
-                  </button>
-                </div>
-              </section>
-            ) : (
-              <section className="p-8 rounded-[40px] bg-[#0A0A0A] border border-white/5 shadow-2xl space-y-8 min-h-[400px]">
-                <div className="flex items-center gap-3 pb-4 border-b border-white/5">
-                  <Lock className="w-5 h-5 text-red-500" />
-                  <h2 className="text-sm font-black text-white uppercase tracking-widest">Password Reset Requests</h2>
+                {/* Support Email */}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                    <RefreshCw className="w-3 h-3" /> Public Support Email
+                  </label>
+                  <input
+                    type="email"
+                    value={settings.support_email || ''}
+                    onChange={(e) => handleUpdateSetting('support_email', e.target.value)}
+                    placeholder="support@domain.com"
+                    className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-white/20 transition-all outline-none text-white text-sm"
+                  />
                 </div>
 
-                <div className="space-y-4">
-                  {resetRequests.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 opacity-30">
-                      <Shield className="w-12 h-12 mb-4" />
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">No Pending Requests</p>
-                    </div>
-                  ) : (
-                    resetRequests.map((req) => (
-                      <div key={req.id} className="p-6 rounded-3xl bg-white/5 border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="space-y-1">
-                          <p className="text-white font-bold">{req.email}</p>
-                          <p className="text-[9px] text-gray-500 uppercase tracking-widest font-black">
-                            Requested {new Date(req.created_at).toLocaleString()}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => handleResetPassword(req.email, req.id)}
-                          disabled={resetingId === req.id}
-                          className="px-6 py-3 rounded-2xl bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 transition-all font-black uppercase text-[10px] tracking-widest flex items-center gap-2"
-                        >
-                          {resetingId === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                          Perform Reset
-                        </button>
-                      </div>
-                    ))
-                  )}
+                {/* Site Name / Copy */}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                    <LogOut className="w-3 h-3" /> Copyright Text
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.copyright_text || ''}
+                    onChange={(e) => handleUpdateSetting('copyright_text', e.target.value)}
+                    className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-white/20 transition-all outline-none text-white text-sm"
+                  />
                 </div>
-              </section>
-            )}
+              </div>
+
+              <div className="pt-8">
+                <button
+                  onClick={saveSettings}
+                  disabled={saving}
+                  className="w-full flex items-center justify-center gap-3 py-5 rounded-3xl bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-[0.2em] text-[11px] shadow-xl shadow-red-900/20 active:scale-[0.98] transition-all disabled:opacity-50"
+                >
+                  {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                  Deploy Policy Changes
+                </button>
+              </div>
+            </section>
           </div>
 
           {/* Sidebar / Quick Stats/ Security */}
@@ -346,8 +254,8 @@ export default function AdminSettings() {
               </div>
               <div className="space-y-4">
                 <div className="flex justify-between items-center p-4 rounded-2xl bg-black/40 border border-white/5">
-                    <span className="text-[10px] text-gray-500 uppercase font-black">Admin OTP</span>
-                    <span className="text-[10px] text-green-500 uppercase font-black">Shield Active</span>
+                    <span className="text-[10px] text-gray-500 uppercase font-black">Admin Access</span>
+                    <span className="text-[10px] text-green-500 uppercase font-black">Master Active</span>
                 </div>
                 <div className="flex justify-between items-center p-4 rounded-2xl bg-black/40 border border-white/5">
                     <span className="text-[10px] text-gray-500 uppercase font-black">Persistence</span>
@@ -412,77 +320,41 @@ export default function AdminSettings() {
                   <div>
                     <h3 className="text-sm font-black text-white uppercase tracking-widest">Update Master Credentials</h3>
                     <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest mt-0.5">
-                      Direct Dashboard Synchorization
+                      Direct Dashboard Synchronization
                     </p>
                   </div>
                 </div>
 
-                {emailChangeStep === 'form' ? (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-[9px] text-gray-500 font-black uppercase tracking-widest mb-2 block">New Master Email</label>
-                      <input
-                        type="email"
-                        value={newMasterEmail}
-                        onChange={e => setNewMasterEmail(e.target.value)}
-                        placeholder="new-admin@domain.com"
-                        className="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-red-500/50 outline-none text-white text-sm transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[9px] text-gray-500 font-black uppercase tracking-widest mb-2 block">New Admin Password</label>
-                      <input
-                        type="password"
-                        value={newMasterPassword}
-                        onChange={e => setNewMasterPassword(e.target.value)}
-                        placeholder="Set new password..."
-                        className="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-red-500/50 outline-none text-white text-sm transition-all"
-                      />
-                    </div>
-                    <p className="text-[9px] text-gray-600 italic">This will directly update the root authentication for TMAIL.PK Mail.</p>
-                    <button
-                      onClick={sendEmailChangeOtp}
-                      disabled={emailChangeSending}
-                      className="w-full py-4 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-widest text-[10px] transition-all mt-4 disabled:opacity-50"
-                    >
-                      {emailChangeSending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Confirm Direct Update →'}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <p className="text-sm text-gray-400">Enter the 6-digit OTP sent to the current master email to confirm this change.</p>
-                    
-                    {devOtp && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: -10 }} 
-                        animate={{ opacity: 1, y: 0 }}
-                        className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-center"
-                      >
-                        <p className="text-[10px] text-red-500 font-black uppercase tracking-widest mb-1">Dev Mode — Master OTP</p>
-                        <p className="text-2xl font-black text-white font-mono tracking-[0.5em]">{devOtp}</p>
-                      </motion.div>
-                    )}
-
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[9px] text-gray-500 font-black uppercase tracking-widest mb-2 block">New Master Email</label>
                     <input
-                      type="text"
-                      maxLength={6}
-                      value={emailChangeOtp}
-                      onChange={e => setEmailChangeOtp(e.target.value.replace(/\D/g, ''))}
-                      placeholder="000000"
-                      className="w-full px-5 py-5 rounded-2xl bg-white/5 border border-white/10 focus:border-green-500/50 outline-none text-white font-mono text-3xl tracking-[0.5em] text-center transition-all"
+                      type="email"
+                      value={newMasterEmail}
+                      onChange={e => setNewMasterEmail(e.target.value)}
+                      placeholder="new-admin@domain.com"
+                      className="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-red-500/50 outline-none text-white text-sm transition-all"
                     />
-                    <button
-                      onClick={() => confirmEmailChange()}
-                      disabled={emailChangeSending || emailChangeOtp.length < 6}
-                      className="w-full py-4 rounded-2xl bg-green-600 hover:bg-green-500 text-white font-black uppercase tracking-widest text-[10px] transition-all disabled:opacity-50"
-                    >
-                      {emailChangeSending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Confirm Change ✓'}
-                    </button>
-                    <button onClick={() => setEmailChangeStep('form')} className="w-full py-3 rounded-2xl text-gray-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all">
-                      ← Back
-                    </button>
                   </div>
-                )}
+                  <div>
+                    <label className="text-[9px] text-gray-500 font-black uppercase tracking-widest mb-2 block">New Admin Password</label>
+                    <input
+                      type="password"
+                      value={newMasterPassword}
+                      onChange={e => setNewMasterPassword(e.target.value)}
+                      placeholder="Set new password..."
+                      className="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-red-500/50 outline-none text-white text-sm transition-all"
+                    />
+                  </div>
+                  <p className="text-[9px] text-gray-600 italic">This will directly update the root authentication for TMAIL.PK Mail.</p>
+                  <button
+                    onClick={sendEmailChangeOtp}
+                    disabled={emailChangeSending}
+                    className="w-full py-4 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-widest text-[10px] transition-all mt-4 disabled:opacity-50"
+                  >
+                    {emailChangeSending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Confirm Direct Update →'}
+                  </button>
+                </div>
               </motion.div>
             </div>
           )}

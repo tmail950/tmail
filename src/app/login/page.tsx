@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Chrome, Lock, Loader2, Eye, EyeOff, Check, Copy, Wand2, Mail } from "lucide-react"
 import { useSearchParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { domainService } from '@/services/domainService';
 
 function LoginContent() {
@@ -18,7 +19,6 @@ function LoginContent() {
   const [selectedDomain, setSelectedDomain] = useState('')
   const [password, setPassword] = useState('')
   const [isSignUp, setIsSignUp] = useState(signupParam === 'true')
-  const [isForgotPassword, setIsForgotPassword] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(
@@ -52,8 +52,6 @@ function LoginContent() {
             const randomIndex = Math.floor(Math.random() * names.length);
             setSelectedDomain(names[randomIndex]);
           }
-          
-          // Password field should always start empty for security
         }
       } catch (e) {
         console.error('Failed to init auth page', e);
@@ -61,28 +59,6 @@ function LoginContent() {
     };
     fetchDomains();
   }, []);
-
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!fullEmail.includes('@') || fullEmail.length < 5) {
-      setMessage({ type: 'error', text: 'Enter a valid email address.' });
-      return;
-    }
-    setLoading(true);
-    setMessage(null);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(fullEmail.toLowerCase().trim(), {
-        redirectTo: `${window.location.origin}/login/update-password`,
-      });
-      if (error) throw error;
-      setMessage({ type: 'success', text: 'Recovery link sent! Check your inbox.' });
-      setTimeout(() => setIsForgotPassword(false), 5000);
-    } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'Failed to send recovery link.' });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -100,7 +76,20 @@ function LoginContent() {
     }
 
     try {
-      // 1. Try standard login first
+      // 1. ADMIN SEGREGATION CHECK: Ensure admins use the /admin portal
+      const { isMasterAdmin } = await import('@/lib/admin-check');
+      const isAdmin = await isMasterAdmin(loginEmail);
+      
+      if (isAdmin && !isSignUp) {
+        setMessage({ 
+          type: 'error', 
+          text: 'Admin account detected. Please use the specialized /admin portal for management.' 
+        });
+        setLoading(false);
+        return;
+      }
+
+      // 2. Try standard login first
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: loginEmail,
         password,
@@ -144,8 +133,6 @@ function LoginContent() {
           throw new Error(result.error || 'Signup failed')
         }
 
-        // Before signing into the new account, we must sign out of the current one
-        // but preserve our profile store
         const profiles = localStorage.getItem('TMAIL.PK_profiles');
         const savedAccounts = localStorage.getItem('TMAIL.PK_saved_accounts');
         const guestHistory = localStorage.getItem('TMAIL.PK_guest_history');
@@ -162,7 +149,6 @@ function LoginContent() {
         })
         if (signInError) throw signInError
 
-        // Save to switcher list
         try {
           const profiles = JSON.parse(localStorage.getItem('TMAIL.PK_profiles') || '[]');
           const p = { email: loginEmail, password, type: 'account' };
@@ -171,6 +157,10 @@ function LoginContent() {
           else profiles.unshift(p);
           localStorage.setItem('TMAIL.PK_profiles', JSON.stringify(profiles.slice(0, 5)));
         } catch(e) {}
+
+        localStorage.setItem("TMAIL.PK_guest_password", password);
+        localStorage.setItem("TMAIL.PK_active_email", loginEmail);
+        localStorage.setItem('TMAIL.PK_switched_manually', 'true');
 
         setMessage({ type: 'success', text: 'Account created!' })
         setTimeout(() => window.location.href = '/?auth=success', 1000)
@@ -185,8 +175,6 @@ function LoginContent() {
 
       if (guestMailbox) {
         const email = guestMailbox.email_address;
-        
-        // Purge old session state to prevent "hybrid" email leakage (old name + new domain)
         try {
           await supabase.auth.signOut();
           Object.keys(localStorage).forEach(key => {
@@ -225,8 +213,6 @@ function LoginContent() {
 
       if (userEmail) {
         const email = userEmail.email_address;
-        
-        // Save to switcher list
         try {
           const profiles = JSON.parse(localStorage.getItem('TMAIL.PK_profiles') || '[]');
           const p = { email: email, password, type: 'account' };
@@ -264,62 +250,34 @@ function LoginContent() {
         className="w-full max-w-lg p-8 rounded-[40px] bg-black/40 border border-white/10 backdrop-blur-xl shadow-2xl relative overflow-hidden group"
       >
         <div className="absolute -top-24 -left-24 w-48 h-48 bg-[var(--color-brand-pink)]/20 rounded-full blur-[100px]" />
-        <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-[var(--color-brand-orange)]/10 rounded-full blur-[100px]" />
+        <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-[var(--color-brand-purple)]/10 rounded-full blur-[100px]" />
 
         <div className="relative z-10 text-center space-y-8">
           <div className="space-y-4">
             <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-white via-white to-gray-500 bg-clip-text text-transparent">
-              {isForgotPassword ? 'Recover Access' : (isSignUp ? 'New Inbox' : 'Access Mail')}
+              {isSignUp ? 'New Inbox' : 'Access Mail'}
             </h1>
-              <p className="text-gray-400 text-sm font-medium">
-                {isForgotPassword ? 'Enter your email to receive a secure reset link' : (isSignUp ? 'Create a new professional email' : 'Sign in to access your mail')}
-              </p>
-              
-              {isSignUp && currentUser && (
-                <div className="flex flex-col items-center gap-2 pt-2 animate-in fade-in slide-in-from-top-2">
-                  <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-                    Adding Profile from: <span className="text-[var(--color-brand-pink)]">{currentUser.email}</span>
-                  </p>
-                  <button 
-                    onClick={() => router.push('/')}
-                    className="text-[9px] text-gray-400 hover:text-white underline underline-offset-4 font-black uppercase tracking-widest decoration-[var(--color-brand-pink)]/50"
-                  >
-                    Back to Dashboard
-                  </button>
-                </div>
-              )}
-            </div>
-
-          {isForgotPassword ? (
-            <form onSubmit={handleResetPassword} className="space-y-6" autoComplete="off">
-              <div className="space-y-4">
-                <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-[32px] transition-all group-within:border-[var(--color-brand-pink)]/30 hover:bg-white/10 transition-colors">
-                  <div className="pl-4 text-[var(--color-brand-pink)] shrink-0">
-                    <Mail className="w-5 h-5 opacity-70" />
-                  </div>
-                  <input
-                    type="email"
-                    placeholder="Enter your account email"
-                    required
-                    autoComplete="off"
-                    value={fullEmail}
-                    onChange={(e) => setFullEmail(e.target.value)}
-                    className="flex-1 min-w-0 px-4 py-4 bg-transparent outline-none text-white text-xl sm:text-2xl font-black lowercase placeholder:text-gray-700"
-                  />
-                </div>
+            <p className="text-gray-400 text-sm font-medium">
+              {isSignUp ? 'Create a new professional email' : 'Sign in to access your mail'}
+            </p>
+            
+            {isSignUp && currentUser && (
+              <div className="flex flex-col items-center gap-2 pt-2 animate-in fade-in slide-in-from-top-2">
+                <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+                  Adding Profile from: <span className="text-[var(--color-brand-pink)]">{currentUser.email}</span>
+                </p>
+                <button 
+                  onClick={() => router.push('/')}
+                  className="text-[9px] text-gray-400 hover:text-white underline underline-offset-4 font-black uppercase tracking-widest decoration-[var(--color-brand-pink)]/50"
+                >
+                  Back to Dashboard
+                </button>
               </div>
-              
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-5 rounded-[24px] font-black uppercase tracking-[0.2em] shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 bg-gradient-to-r from-[var(--color-brand-purple)] to-[var(--color-brand-pink)] hover:shadow-[var(--color-brand-pink)]/30 text-white text-[11px]"
-              >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'SEND RECOVERY LINK'}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleAuth} className="space-y-6" autoComplete="off">
-              <div className="space-y-4">
+            )}
+          </div>
+
+          <form onSubmit={handleAuth} className="space-y-6" autoComplete="off">
+            <div className="space-y-4">
               <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-[32px] transition-all group-within:border-[var(--color-brand-pink)]/30 group-hover:bg-white/10 transition-colors">
                 <div className="pl-4 text-[var(--color-brand-pink)] shrink-0">
                   <Mail className="w-5 h-5 opacity-70" />
@@ -335,14 +293,14 @@ function LoginContent() {
                       data-lpignore="true"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="flex-1 min-w-0 px-2 py-4 bg-transparent outline-none text-white text-xl sm:text-2xl font-black lowercase placeholder:text-gray-700"
+                      className="flex-1 min-w-0 px-2 sm:px-6 py-4 bg-transparent outline-none text-white text-xl sm:text-2xl font-black lowercase placeholder:text-gray-700"
                     />
-                    <div className="flex items-center shrink-0 pr-2">
-                      <span className="text-gray-600 font-bold font-mono mr-1">@</span>
+                    <div className="flex items-center shrink-0 pr-4 gap-3">
+                      <span className="text-gray-600 font-black text-2xl font-mono">@</span>
                       <select
                         value={selectedDomain}
                         onChange={(e) => setSelectedDomain(e.target.value)}
-                        className="bg-transparent text-gray-300 text-sm font-black py-1 outline-none cursor-pointer appearance-none min-w-[100px]"
+                        className="bg-white/5 border border-white/10 rounded-lg px-2 sm:px-3 py-1.5 text-[var(--color-brand-pink)] text-sm font-black outline-none cursor-pointer appearance-none min-w-[100px] sm:min-w-[120px] hover:border-[var(--color-brand-pink)]/30 transition-all font-sans"
                       >
                         {availableDomains.map(d => (
                           <option key={d} value={d} className="bg-[#050505]">{d}</option>
@@ -385,7 +343,7 @@ function LoginContent() {
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
-                  placeholder="Secret Key"
+                  placeholder="Password"
                   required
                   autoComplete="new-password"
                   data-lpignore="true"
@@ -416,15 +374,7 @@ function LoginContent() {
               </div>
 
               {!isSignUp && (
-                <div className="flex justify-end px-2 mt-1">
-                  <button 
-                    type="button" 
-                    onClick={() => setIsForgotPassword(true)}
-                    className="text-[10px] uppercase font-black tracking-widest text-gray-500 hover:text-[var(--color-brand-pink)] active:scale-95 transition-all"
-                  >
-                    Forgot Secret Key?
-                  </button>
-                </div>
+                <div className="h-2"></div>
               )}
             </div>
 
@@ -436,37 +386,19 @@ function LoginContent() {
               {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (isSignUp ? 'SignUP' : 'Login now')}
             </button>
           </form>
-          )}
 
           <footer className="pt-4 border-t border-white/5">
-            {isForgotPassword ? (
-              <button 
-                onClick={() => setIsForgotPassword(false)}
-                className="text-gray-500 hover:text-white transition-all group/toggle flex items-center justify-center gap-2 mx-auto"
-              >
-                <span className="text-[10px] uppercase font-black tracking-widest">
-                  Remembered it?
-                </span>
-                <span className="text-[10px] uppercase font-black tracking-widest text-[var(--color-brand-pink)] group-hover:underline underline-offset-4 decoration-2">
-                  Back to Login
-                </span>
-              </button>
-            ) : (
-              <button 
-                onClick={() => {
-                  const goingToSignup = !isSignUp;
-                  router.push(goingToSignup ? '/login?signup=true' : '/login');
-                }}
-                className="text-gray-500 hover:text-white transition-all group/toggle flex items-center justify-center gap-2 mx-auto"
-              >
-                <span className="text-[10px] uppercase font-black tracking-widest">
-                  {isSignUp ? 'Already member?' : 'New here?'}
-                </span>
-                <span className="text-[10px] uppercase font-black tracking-widest text-[var(--color-brand-pink)] group-hover:underline underline-offset-4 decoration-2">
-                  {isSignUp ? 'Log In' : 'Create One'}
-                </span>
-              </button>
-            )}
+            <Link 
+              href={isSignUp ? '/login?add=true' : '/login?signup=true'}
+              className="text-gray-500 hover:text-white transition-all group/toggle flex items-center justify-center gap-2 mx-auto no-underline"
+            >
+              <span className="text-[10px] uppercase font-black tracking-widest">
+                {isSignUp ? 'Already member?' : 'New here?'}
+              </span>
+              <span className="text-[10px] uppercase font-black tracking-widest text-[var(--color-brand-pink)] group-hover:underline underline-offset-4 decoration-2">
+                {isSignUp ? 'Log In' : 'Create One'}
+              </span>
+            </Link>
           </footer>
 
           <AnimatePresence mode="wait">

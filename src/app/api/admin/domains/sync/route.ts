@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { cloudflare } from '@/lib/cloudflare';
-import { domainService } from '@/services/domainService';
 
 export async function POST(request: Request) {
   try {
+    // Dynamic imports to strictly isolate server logic from build-time tracing
+    const { createClient } = await import('@/lib/supabase/server');
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const { cloudflare } = await import('@/lib/cloudflare');
+    const { isMasterAdmin } = await import('@/lib/admin-check');
+
     const supabase = await createClient();
     const { id } = await request.json();
 
@@ -15,7 +17,6 @@ export async function POST(request: Request) {
     }
 
     // 1. Verify Admin Status
-    const { isMasterAdmin } = await import('@/lib/admin-check');
     if (!await isMasterAdmin(session.user.email)) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }

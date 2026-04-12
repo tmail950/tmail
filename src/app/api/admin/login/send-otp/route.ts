@@ -1,10 +1,11 @@
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
-import { emailService } from '@/lib/email'
 
 export async function POST(req: NextRequest) {
   try {
+    // Dynamic imports to strictly isolate server logic from build-time tracing
+    const { createAdminClient } = await import('@/lib/supabase/admin')
+    const { emailService } = await import('@/lib/email')
+
     const { email } = await req.json()
     if (!email) return NextResponse.json({ error: 'Email required' }, { status: 400 })
 

@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import dns from 'dns/promises'
 
 export async function POST(request: Request) {
   try {
+    // Dynamic imports to strictly isolate server logic from build-time tracing
+    const { createClient } = await import('@/lib/supabase/server')
+    const dns = await import('dns/promises')
+
     const supabase = await createClient()
     const { domain } = await request.json()
 
@@ -12,9 +14,6 @@ export async function POST(request: Request) {
     }
 
     const cleanDomain = domain.toLowerCase().trim()
-    
-    // In a real production app, you'd check against your specific IP or CNAME.
-    // For this demonstration, we'll verify if ANY A or CNAME record exists.
     
     const VERCEL_IP = "76.76.21.21"
     const VERCEL_CNAME = "cname.vercel-dns.com"
@@ -61,7 +60,6 @@ export async function POST(request: Request) {
     }
 
     if (isVerified) {
-      // Update the user_domains table (not custom_domains which doesn't exist/old)
       const { error } = await supabase
         .from('user_domains')
         .update({ is_verified: true, verified_at: new Date().toISOString() })
