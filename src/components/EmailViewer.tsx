@@ -126,52 +126,52 @@ export default memo(function EmailViewer({
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none"></div>
 
       {/* Control Bar */}
-      <div className="flex items-center justify-between px-6 pt-8 pb-4 border-b border-white/5 z-20 bg-black/40 backdrop-blur-xl">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between px-3 sm:px-6 pt-6 sm:pt-8 pb-4 border-b border-white/5 z-20 bg-black/40 backdrop-blur-xl gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <button 
             onClick={onClose}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all text-[11px] font-black uppercase tracking-widest border border-white/10 shadow-lg active:scale-95"
+            className="flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all text-[10px] sm:text-[11px] font-black uppercase tracking-widest border border-white/10 shadow-lg active:scale-95 whitespace-nowrap"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-3.5 h-3.5 sm:w-4 h-4" />
             Back
           </button>
           
-          <div className="h-4 w-[1px] bg-white/10 mx-2"></div>
+          <div className="h-4 w-[1px] bg-white/10 mx-1 sm:mx-2 hidden xs:block"></div>
           
           <div className="flex items-center gap-1">
             <button 
               onClick={onPrev}
               disabled={!hasPrev}
-              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all border border-white/5"
+              className="p-1.5 sm:p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all border border-white/5"
               title="Previous Email"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4 sm:w-5 h-5" />
             </button>
             <button 
               onClick={onNext}
               disabled={!hasNext}
-              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all border border-white/5"
+              className="p-1.5 sm:p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all border border-white/5"
               title="Next Email"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-4 h-4 sm:w-5 h-5" />
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
           <button 
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-[var(--color-brand-pink)] transition-all text-xs font-black uppercase tracking-widest border border-white/5"
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-[var(--color-brand-pink)] transition-all text-[10px] sm:text-xs font-black uppercase tracking-widest border border-white/5 whitespace-nowrap"
             onClick={() => alert("Forwarding sequence not yet initialized.")}
           >
-            <Forward className="w-4 h-4" />
-            Forward
+            <Forward className="w-3.5 h-3.5 sm:w-4 h-4" />
+            <span className="hidden xs:inline">Forward</span>
           </button>
           <button 
             onClick={onClose}
-            className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-all border border-white/5"
+            className="p-2 sm:p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-all border border-white/5 shadow-lg active:scale-95"
             title="Close View"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 sm:w-5 h-5 font-black" />
           </button>
         </div>
       </div>
