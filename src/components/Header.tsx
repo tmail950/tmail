@@ -356,12 +356,13 @@ const HeaderContent = memo(() => {
                   </button>
                   )}
 
+                  {/* Hidden on mobile to prevent overflow, accessible via hamburger menu */}
                   <button
                     onClick={handleLogout}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all border border-white/5 text-nowrap"
+                    className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all border border-white/5 text-nowrap"
                   >
                     <LogOut className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Sign Out</span>
+                    Sign Out
                   </button>
 
                   <button 
