@@ -115,7 +115,7 @@ export const cloudflare = {
         type: "TXT",
         name: "@",
         content: token,
-        ttl: 3600,
+        ttl: 60,
       }),
     });
   },
@@ -125,9 +125,9 @@ export const cloudflare = {
     
     // 1. MX Records
     const mxRecords = [
-      { type: "MX", name: "@", content: "route1.mx.cloudflare.net", priority: 10, ttl: 3600 },
-      { type: "MX", name: "@", content: "route2.mx.cloudflare.net", priority: 20, ttl: 3600 },
-      { type: "MX", name: "@", content: "route3.mx.cloudflare.net", priority: 30, ttl: 3600 },
+      { type: "MX", name: "@", content: "route1.mx.cloudflare.net", priority: 10, ttl: 60 },
+      { type: "MX", name: "@", content: "route2.mx.cloudflare.net", priority: 20, ttl: 60 },
+      { type: "MX", name: "@", content: "route3.mx.cloudflare.net", priority: 30, ttl: 60 },
     ];
 
     for (const record of mxRecords) {
@@ -152,7 +152,7 @@ export const cloudflare = {
           type: "TXT",
           name: "@",
           content: "v=spf1 include:_spf.mx.cloudflare.net ~all",
-          ttl: 3600,
+          ttl: 60,
         }),
       });
     } catch (e: any) {
@@ -168,8 +168,8 @@ export const cloudflare = {
     console.log(`CLOUDFLARE: Configuring General DNS (A/CNAME) for zone ${zoneId}...`);
     
     const records = [
-      { type: "A", name: "@", content: "76.76.21.21", ttl: 3600, proxied: true },
-      { type: "CNAME", name: "www", content: "cname.quammify.fun", ttl: 3600, proxied: true },
+      { type: "A", name: "@", content: "76.76.21.21", ttl: 60, proxied: true },
+      { type: "CNAME", name: "www", content: "cname.quammify.fun", ttl: 60, proxied: true },
     ];
 
     for (const record of records) {

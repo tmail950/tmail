@@ -16,18 +16,62 @@ interface EmailViewerProps {
 /**
  * Decodes Quoted-Printable encoded strings (common in emails).
  * Handles soft line breaks (=\n) and hex escapes (=3D, =20 etc.)
+ * Modernized to support multi-byte UTF-8 sequences correctly.
  */
 function decodeQuotedPrintable(str: string): string {
   if (!str) return '';
-  return str
-    .replace(/=\r?\n/g, '')
-    .replace(/=([0-9A-F]{2})/gi, (_, hex) => {
-      try {
-        return String.fromCharCode(parseInt(hex, 16));
-      } catch (e) {
-        return `=${hex}`;
+
+  // 1. Handle soft line breaks first
+  const cleanStr = str.replace(/=\r?\n/g, '');
+
+  // 2. Extract bytes to handle multi-byte UTF-8 sequences correctly
+  const bytes: number[] = [];
+  for (let i = 0; i < cleanStr.length; i++) {
+    const char = cleanStr[i];
+    if (char === '=' && i + 2 < cleanStr.length) {
+      const hex = cleanStr.slice(i + 1, i + 3);
+      if (/^[0-9A-F]{2}$/i.test(hex)) {
+        bytes.push(parseInt(hex, 16));
+        i += 2;
+        continue;
       }
-    });
+    }
+    bytes.push(cleanStr.charCodeAt(i));
+  }
+
+  try {
+    return new TextDecoder().decode(new Uint8Array(bytes));
+  } catch (e) {
+    // Fallback for extremely mangled content
+    return cleanStr;
+  }
+}
+
+/**
+ * Decodes RFC 2047 Encoded-Words (common in email subjects).
+ * Format: =?charset?encoding?encoded-text?=
+ */
+function decodeRFC2047(str: string | null | undefined): string {
+  if (!str) return '';
+  
+  return str.replace(/=\?([a-zA-Z0-9-]+)\?([QB])\?([^?]+)\?=/gi, (match, charset, encoding, text) => {
+    try {
+      if (encoding.toUpperCase() === 'Q') {
+        // Q-encoding is similar to Quoted-Printable but uses _ for space
+        const qDecoded = text.replace(/_/g, ' ');
+        return decodeQuotedPrintable(qDecoded);
+      } else if (encoding.toUpperCase() === 'B') {
+        // B-encoding is Base64
+        const binary = atob(text);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return new TextDecoder().decode(bytes);
+      }
+    } catch (e) {
+      console.warn('RFC 2047 decoding failed:', e);
+    }
+    return match;
+  });
 }
 
 /**
@@ -184,7 +228,7 @@ export default memo(function EmailViewer({
           </div>
           <div className="flex flex-col">
             <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
-              {email.subject || "(No Subject)"}
+              {decodeRFC2047(email.subject) || "(No Subject)"}
             </h2>
             <div className="flex items-center gap-2 mt-1">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
