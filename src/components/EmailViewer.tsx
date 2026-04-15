@@ -170,7 +170,7 @@ export default memo(function EmailViewer({
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none"></div>
 
       {/* Control Bar */}
-      <div className="flex items-center justify-between px-3 sm:px-6 pt-6 sm:pt-8 pb-4 border-b border-white/5 z-20 bg-black/40 backdrop-blur-xl gap-2">
+      <div className="flex items-center justify-between px-3 sm:px-6 pt-12 sm:pt-8 pb-4 border-b border-white/5 z-20 bg-black/40 backdrop-blur-xl gap-2">
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <button 
             onClick={onClose}

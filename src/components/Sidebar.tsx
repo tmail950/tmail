@@ -26,6 +26,41 @@ function formatPSTime(dateStr: string | undefined): string {
   });
 }
 
+/**
+ * Extracts a friendly sender name from complex email strings.
+ * Handles "Name <email@domain.com>" and strips technical "bounces+" VERP prefixes.
+ */
+function getFriendlySender(sender: string | null | undefined): string {
+  if (!sender) return "Unknown Sender";
+  
+  // 1. Try to extract Name from "Name <email@domain.com>"
+  if (sender.includes('<') && sender.includes('>')) {
+    const namePart = sender.split('<')[0].trim();
+    if (namePart) {
+      return namePart.replace(/^"|"$/g, ''); // Strip quotes if any
+    }
+  }
+
+  // 2. Extract the actual email part
+  const emailMatch = sender.match(/<?([^<>\s]+)>?/);
+  const email = emailMatch ? emailMatch[1] : sender;
+
+  // 3. Special Case: VERP / Bounce addresses (e.g., bounces+...=domain.com@...)
+  if (email.toLowerCase().includes('bounces+')) {
+    // Try to find the actual sender domain after '='
+    const verpMatch = email.match(/=([^=@]+)@/);
+    if (verpMatch) {
+      return verpMatch[1]; // e.g. "qamify.net"
+    }
+    // Fallback to the main domain part
+    const domainPart = email.split('@')[1];
+    if (domainPart) return domainPart;
+  }
+
+  // 4. Fallback: Return the local part or the whole email if no @
+  return email.split('@')[0] || email;
+}
+
 /** Returns a very short preview, skipping raw email header lines. */
 function getBodyPreview(text: string | null | undefined): string {
   if (!text) return 'Empty transmission content.';
@@ -85,7 +120,7 @@ const SidebarItem = memo(({ email, isSelected, onSelect }: { email: Email, isSel
       
       <div className="flex justify-between items-start w-full">
         <span className={`font-black tracking-tight truncate max-w-[70%] ${isSelected ? 'text-white text-lg' : 'text-gray-300'}`}>
-          {email.sender?.split('<')[0].trim() || "Unknown"}
+          {getFriendlySender(email.sender)}
         </span>
         <span className="text-[9px] text-gray-500 font-mono tracking-tighter whitespace-nowrap mt-1 text-right leading-tight">
           {formatPSTime(email.received_at)}
