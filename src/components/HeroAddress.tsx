@@ -88,7 +88,7 @@ const HeroAddress = ({
             <h2 className="text-[9px] font-black text-gray-400 tracking-[0.5em] uppercase relative z-10 font-mono">
               ACTIVE INBOX {guestTimeLeft !== null && (
                 <span className="ml-2 text-[var(--color-brand-pink)] animate-pulse shadow-cyan-500">
-                  [{Math.floor(guestTimeLeft / 60)}:{(guestTimeLeft % 60).toString().padStart(2, '0')}]
+                  [{Math.floor(guestTimeLeft / 3600)}h {Math.floor((guestTimeLeft % 3600) / 60)}m]
                 </span>
               )}
             </h2>
