@@ -138,14 +138,14 @@ export default function AdminSettings() {
               <Shield className="w-6 h-6" />
               <span className="text-[10px] font-black uppercase tracking-[0.4em]">Master Control</span>
             </div>
-            <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">
+            <h1 className="text-3xl sm:text-4xl font-black text-white uppercase tracking-tighter italic">
               System <span className="text-red-500">Settings</span>
             </h1>
           </div>
 
           <button 
             onClick={handleLogout}
-            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-red-500/50 transition-all font-black uppercase text-[10px] tracking-widest"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-red-500/50 transition-all font-black uppercase text-[10px] tracking-widest shadow-lg"
           >
             <LogOut className="w-4 h-4" />
             Terminate Session
@@ -155,7 +155,7 @@ export default function AdminSettings() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {/* Main Configuration */}
           <div className="lg:col-span-2 space-y-6">
-            <section className="p-8 rounded-[40px] bg-[#0A0A0A] border border-white/5 shadow-2xl space-y-8">
+            <section className="p-5 sm:p-8 rounded-3xl sm:rounded-[40px] bg-[#0A0A0A] border border-white/5 shadow-2xl space-y-8">
               <div className="flex items-center gap-3 pb-4 border-b border-white/5">
                 <Settings className="w-5 h-5 text-red-500" />
                 <h2 className="text-sm font-black text-white uppercase tracking-widest">Global Configuration</h2>
@@ -167,16 +167,16 @@ export default function AdminSettings() {
                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
                     <Mail className="w-3 h-3" /> Master Admin Email
                   </label>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <input
                       type="email"
                       value={settings.admin_email || ''}
                       readOnly
-                      className="flex-1 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 outline-none text-white font-mono text-sm cursor-not-allowed opacity-60"
+                      className="flex-1 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 outline-none text-white font-mono text-xs sm:text-sm cursor-not-allowed opacity-60"
                     />
                     <button
                       onClick={() => setShowEmailChange(true)}
-                      className="px-4 py-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest border border-red-500/20 transition-all whitespace-nowrap"
+                      className="px-6 py-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest border border-red-500/20 transition-all whitespace-nowrap shadow-lg"
                     >
                       Update Master Credentials
                     </button>
@@ -227,7 +227,7 @@ export default function AdminSettings() {
 
           {/* Sidebar / Quick Stats/ Security */}
           <div className="space-y-6">
-            <section className="p-8 rounded-[40px] bg-blue-600/5 border border-blue-500/10 space-y-6">
+            <section className="p-6 sm:p-8 rounded-3xl sm:rounded-[40px] bg-blue-600/5 border border-blue-500/10 space-y-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Globe className="w-5 h-5 text-blue-500" />
@@ -240,38 +240,38 @@ export default function AdminSettings() {
               </p>
               <button 
                 onClick={() => window.location.href = '/domains'}
-                className="w-full flex items-center justify-between px-6 py-4 rounded-2xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest transition-all group"
+                className="w-full flex items-center justify-between px-6 py-4 rounded-2xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest transition-all group shadow-md"
               >
                 Manage Domains
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </button>
             </section>
 
-            <section className="p-8 rounded-[40px] bg-red-600/5 border border-red-500/10 space-y-6">
+            <section className="p-6 sm:p-8 rounded-3xl sm:rounded-[40px] bg-red-600/5 border border-red-500/10 space-y-6">
               <div className="flex items-center gap-3">
                 <Lock className="w-5 h-5 text-red-500" />
                 <h3 className="text-[11px] font-black text-white uppercase tracking-widest">Security Status</h3>
               </div>
               <div className="space-y-4">
-                <div className="flex justify-between items-center p-4 rounded-2xl bg-black/40 border border-white/5">
+                <div className="flex justify-between items-center p-4 rounded-2xl bg-black/40 border border-white/5 shadow-inner">
                     <span className="text-[10px] text-gray-500 uppercase font-black">Admin Access</span>
                     <span className="text-[10px] text-green-500 uppercase font-black">Master Active</span>
                 </div>
-                <div className="flex justify-between items-center p-4 rounded-2xl bg-black/40 border border-white/5">
+                <div className="flex justify-between items-center p-4 rounded-2xl bg-black/40 border border-white/5 shadow-inner">
                     <span className="text-[10px] text-gray-500 uppercase font-black">Persistence</span>
                     <span className="text-[10px] text-blue-500 uppercase font-black">Synced</span>
                 </div>
               </div>
             </section>
             
-            <section className="p-8 rounded-[40px] bg-white/[0.02] border border-white/5 space-y-4 group">
+            <section className="p-6 sm:p-8 rounded-3xl sm:rounded-[40px] bg-white/[0.02] border border-white/5 space-y-4 group">
                <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Site Footer Links</h4>
                <div className="space-y-2">
-                 <button className="w-full flex justify-between items-center p-3 rounded-xl hover:bg-white/5 transition-all group-hover:text-white">
+                 <button className="w-full flex justify-between items-center p-4 rounded-xl hover:bg-white/5 transition-all group-hover:text-white border border-transparent hover:border-white/5">
                    <span className="text-xs">Terms of Service</span>
                    <ChevronRight className="w-4 h-4 opacity-30" />
                  </button>
-                 <button className="w-full flex justify-between items-center p-3 rounded-xl hover:bg-white/5 transition-all group-hover:text-white">
+                 <button className="w-full flex justify-between items-center p-4 rounded-xl hover:bg-white/5 transition-all group-hover:text-white border border-transparent hover:border-white/5">
                    <span className="text-xs">Privacy Policy</span>
                    <ChevronRight className="w-4 h-4 opacity-30" />
                  </button>
@@ -307,10 +307,10 @@ export default function AdminSettings() {
                 className="absolute inset-0 bg-black/90 backdrop-blur-md"
               />
               <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="relative w-full max-w-lg bg-[#050505] rounded-[40px] border border-red-500/20 shadow-[0_0_60px_rgba(220,38,38,0.2)] p-8 sm:p-12 overflow-hidden"
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-lg bg-[#050505] rounded-3xl sm:rounded-[40px] border border-red-500/20 shadow-[0_0_60px_rgba(220,38,38,0.2)] p-6 sm:p-12 overflow-hidden"
               >
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent"></div>
                 <div className="flex items-center gap-3 mb-8">
