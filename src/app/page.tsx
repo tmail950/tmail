@@ -500,7 +500,7 @@ export default function Home() {
     setIsInitialLoading(false);
   }, []);
 
-  // Guest Session Timer Logic (10 Minutes)
+  // Guest Session Timer Logic (24 Hours)
   useEffect(() => {
     // Hide timer only for registered users or those who have ENTERED a password on the login page
     if (user || localStorage.getItem("TMAIL.PK_is_premium_access") === "true") {
@@ -515,7 +515,7 @@ export default function Home() {
       
       if (storedStartTime) {
         const elapsed = Math.floor((now - parseInt(storedStartTime)) / 1000);
-        const remaining = 600 - elapsed;
+        const remaining = 86400 - elapsed;
         if (remaining <= 0) {
           setGuestTimeLeft(0);
         } else {
@@ -523,7 +523,7 @@ export default function Home() {
         }
       } else {
         localStorage.setItem("TMAIL.PK_guest_session_start", now.toString());
-        setGuestTimeLeft(600);
+        setGuestTimeLeft(86400);
       }
     }
 
@@ -860,7 +860,7 @@ export default function Home() {
               Guest Session Expired
             </h2>
             <p className="text-gray-400 max-w-sm mb-10 font-medium leading-relaxed text-sm">
-              Your 10-minute guest security session has concluded. Previous temporary access has been zeroed out.
+              Your 24-hour guest security session has concluded. Previous temporary access has been zeroed out.
               <br/><br/>
               <span className="text-[var(--color-brand-pink)] uppercase tracking-widest text-[10px] font-black italic">Credentials required for re-access</span>
             </p>

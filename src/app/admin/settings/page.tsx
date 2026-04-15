@@ -127,7 +127,7 @@ export default function AdminSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] p-6 sm:p-12 relative overflow-hidden">
+    <div className="min-h-screen bg-[#050505] p-4 sm:p-6 md:p-12 relative overflow-hidden">
       {/* Background Ambience */}
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-red-500/5 rounded-full blur-[150px] -translate-y-1/2 translate-x-1/2" />
       
@@ -152,7 +152,7 @@ export default function AdminSettings() {
           </button>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {/* Main Configuration */}
           <div className="lg:col-span-2 space-y-6">
             <section className="p-8 rounded-[40px] bg-[#0A0A0A] border border-white/5 shadow-2xl space-y-8">

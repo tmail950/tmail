@@ -63,7 +63,7 @@ export default function AdminLoginPage() {
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md p-10 rounded-[40px] bg-[#0A0A0A] border border-white/5 shadow-2xl relative overflow-hidden"
+        className="w-full max-w-md sm:max-w-lg p-4 sm:p-6 md:p-8 rounded-[40px] bg-[#0A0A0A] border border-white/5 shadow-2xl relative overflow-hidden"
       >
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-50" />
         
