@@ -33,7 +33,7 @@ export const cardUtils = {
     return card + checkDigit;
   },
 
-  generateRandomCard(bin: string = ""): GeneratedCard {
+  generateRandomCard(bin: string = "", forceMonth?: string, forceYear?: string, forceCvv?: string): GeneratedCard {
     const visaBins = ["4539", "4556", "4916", "4532", "4929", "4024", "4485", "4716", "4226"];
     const masterBins = ["51", "52", "53", "54", "55"];
     
@@ -94,20 +94,23 @@ export const cardUtils = {
     // 4. Generate Dates
     const now = new Date();
     const futureYear = now.getFullYear() + Math.floor(Math.random() * 5) + 1;
-    const month = (Math.floor(Math.random() * 12) + 1).toString().padStart(2, '0');
+    const year = forceYear || futureYear.toString().slice(-2);
+    const month = forceMonth || (Math.floor(Math.random() * 12) + 1).toString().padStart(2, '0');
     
     // 5. Generate CVV
-    let cvv = "";
-    if (cvvLength === 4) {
-      cvv = Math.floor(Math.random() * 9000 + 1000).toString();
-    } else {
-      cvv = Math.floor(Math.random() * 900 + 100).toString();
+    let cvv = forceCvv || "";
+    if (!forceCvv) {
+      if (cvvLength === 4) {
+        cvv = Math.floor(Math.random() * 9000 + 1000).toString();
+      } else {
+        cvv = Math.floor(Math.random() * 900 + 100).toString();
+      }
     }
 
     return {
       number,
       expiryMonth: month,
-      expiryYear: futureYear.toString().slice(-2),
+      expiryYear: year,
       cvv,
       type
     };

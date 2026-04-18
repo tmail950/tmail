@@ -8,7 +8,18 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder'
   );
   try {
+    // 0. Limit file size to 500KB (prevent high GB/video files)
+    const contentLength = parseInt(request.headers.get('content-length') || '0');
+    if (contentLength > 512 * 1024) { // 512KB
+      return NextResponse.json({ error: 'Payload too large. Maximum 500KB allowed.' }, { status: 413 });
+    }
+
     const body = await request.json();
+    
+    // Additional check on stringified body size for safety
+    if (JSON.stringify(body).length > 600 * 1024) {
+      return NextResponse.json({ error: 'Decoded payload too large.' }, { status: 413 });
+    }
     const { sender, subject, recipient, body_text, body_html, api_key } = body;
 
     // Secure the endpoint with an API Key

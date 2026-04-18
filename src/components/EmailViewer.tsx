@@ -117,6 +117,31 @@ function extractBody(raw: string | null | undefined): string {
   return decodeQuotedPrintable(content.trim());
 }
 
+/**
+ * Converts plain text URLs into clickable HTML links.
+ */
+function linkify(text: string): React.ReactNode[] {
+  if (!text) return [];
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a 
+          key={i} 
+          href={part} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="text-blue-500 hover:underline break-all"
+        >
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
+}
+
 /** Pakistan Standard Time (UTC+5) formatter with AM/PM and full date. */
 function formatPST(dateStr: string | undefined): string {
   if (!dateStr) return '';
@@ -166,7 +191,8 @@ export default memo(function EmailViewer({
   const displayHtml = rawHtml ? (rawHtml.includes('<head>') ? rawHtml.replace('<head>', `<head>${baseCss}`) : `${baseCss}${rawHtml}`) : null;
 
   return (
-    <div className="h-full w-full flex flex-col bg-[#050505] rounded-[32px] border border-white/10 overflow-hidden shadow-2xl relative">
+    <div className="h-full w-full flex flex-col bg-[#050505] rounded-[32px] sm:rounded-[48px] border border-white/10 overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] relative">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,18,177,0.05)_0%,transparent_50%)] pointer-events-none"></div>
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none"></div>
 
       {/* Control Bar */}
@@ -227,12 +253,12 @@ export default memo(function EmailViewer({
             <Mail className="w-full h-full text-white" />
           </div>
           <div className="flex flex-col">
-            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
+            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tighter leading-tight italic">
               {decodeRFC2047(email.subject) || "(No Subject)"}
             </h2>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Secure Transmission Decrypted</span>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></span>
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">End-to-End Decryption Active</span>
             </div>
           </div>
         </div>
@@ -244,7 +270,8 @@ export default memo(function EmailViewer({
       <div className="flex-1 p-4 sm:p-8 overflow-y-auto custom-scrollbar bg-black/50 z-10">
         <div className="max-w-4xl mx-auto">
           {displayHtml ? (
-            <div className="bg-white rounded-3xl overflow-hidden min-h-[600px] shadow-2xl border border-white/10">
+            <div className="bg-white rounded-[32px] overflow-hidden min-h-[600px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/5 relative group/mail">
+              <div className="absolute inset-0 bg-black/5 opacity-0 group-hover/mail:opacity-100 transition-opacity pointer-events-none"></div>
               <iframe
                 srcDoc={displayHtml}
                 className="w-full h-full min-h-[600px] border-0"
@@ -253,8 +280,23 @@ export default memo(function EmailViewer({
               />
             </div>
           ) : (
-            <div className="bg-white p-8 sm:p-12 rounded-3xl shadow-2xl text-gray-900 leading-relaxed whitespace-pre-wrap font-sans text-lg selection:bg-[var(--color-brand-pink)] selection:text-white pb-20 border border-white/10">
-              {cleanBodyText || <span className="text-gray-400 italic font-medium">No decrypted content found in this transmission.</span>}
+            <div className="bg-white p-8 sm:p-16 rounded-[40px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] text-gray-900 leading-[1.8] whitespace-pre-wrap font-sans text-lg selection:bg-[var(--color-brand-pink)] selection:text-white pb-20 border border-white/5">
+              {cleanBodyText ? linkify(cleanBodyText) : <span className="text-gray-400 italic font-medium">No decrypted content found in this transmission.</span>}
+            </div>
+          )}
+
+          {/* Attachments Section - Placeholder for UI consistency */}
+          {(email as any).attachments && (email as any).attachments.length > 0 && (
+            <div className="mt-8 p-6 rounded-3xl bg-white/5 border border-white/10">
+              <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Secured Attachments</h4>
+              <div className="flex flex-wrap gap-3">
+                {(email as any).attachments.map((at: any, i: number) => (
+                  <button key={i} className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-xs text-gray-300 transition-all flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                    {at.filename || `attachment-${i+1}`}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>

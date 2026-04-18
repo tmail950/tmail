@@ -41,7 +41,14 @@ export default function Home() {
   const [isDomainLoading, setIsDomainLoading] = useState(true);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [mailboxPassword, setMailboxPassword] = useState("");
+  const [mailboxPassword, setMailboxPassword] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const tabId = sessionStorage.getItem("TMAIL.PK_tab_id");
+      return localStorage.getItem(`TMAIL.PK_guest_password_${tabId}`) || 
+             localStorage.getItem("TMAIL.PK_guest_password") || "";
+    }
+    return "";
+  });
   const [sessionExpired, setSessionExpired] = useState(false);
   const [isFirstLoad, setIsFirstLoad] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
@@ -934,11 +941,13 @@ export default function Home() {
                 <EmptyState isSaved={userEmails.some(e => e.email_address === address)} />
               </div>
             ) : (
-              <Sidebar 
-                emails={emails} 
-                selectedEmailId={selectedEmailId} 
-                onSelectEmail={setSelectedEmailId} 
-              />
+              <div className="flex-1 h-full max-h-[calc(100vh-450px)] sm:max-h-[calc(100vh-350px)] overflow-hidden">
+                <Sidebar 
+                  emails={emails} 
+                  selectedEmailId={selectedEmailId} 
+                  onSelectEmail={setSelectedEmailId} 
+                />
+              </div>
             )}
           </div>
         </div>

@@ -13,16 +13,28 @@ export default function CardsPage() {
   const [results, setResults] = useState<GeneratedCard[]>([]);
   const [copied, setCopied] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [useCustomExpiry, setUseCustomExpiry] = useState(false);
+  const [useCustomCvv, setUseCustomCvv] = useState(false);
+  const [customMonth, setCustomMonth] = useState("01");
+  const [customYear, setCustomYear] = useState("26");
+  const [customCvv, setCustomCvv] = useState("");
 
   const handleGenerate = useCallback(() => {
     setIsGenerating(true);
     // Add small delay for animation feel
     setTimeout(() => {
-      const newCards = Array.from({ length: amount }, () => cardUtils.generateRandomCard(bin));
+      const newCards = Array.from({ length: amount }, () => 
+        cardUtils.generateRandomCard(
+          bin, 
+          useCustomExpiry ? customMonth : undefined, 
+          useCustomExpiry ? customYear : undefined, 
+          useCustomCvv ? customCvv : undefined
+        )
+      );
       setResults(prev => [...newCards, ...prev].slice(0, 100)); // Keep last 100
       setIsGenerating(false);
     }, 400);
-  }, [bin, amount]);
+  }, [bin, amount, useCustomExpiry, customMonth, customYear, useCustomCvv, customCvv]);
 
   const copyResults = useCallback(() => {
     const text = results.map(c => `${c.number}|${c.expiryMonth}|${c.expiryYear}|${c.cvv}`).join("\n");
@@ -77,8 +89,66 @@ export default function CardsPage() {
                     />
                   </div>
 
+                  {/* Expiry Date Customization */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between ml-1">
+                      <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Expiry Date</label>
+                      <button 
+                        onClick={() => setUseCustomExpiry(!useCustomExpiry)}
+                        className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-md transition-all ${useCustomExpiry ? 'bg-[var(--color-brand-pink)] text-white' : 'bg-white/5 text-gray-500 hover:text-white'}`}
+                      >
+                        {useCustomExpiry ? "Customized" : "Randomize"}
+                      </button>
+                    </div>
+                    {useCustomExpiry && (
+                      <div className="flex gap-4">
+                        <select 
+                          value={customMonth}
+                          onChange={(e) => setCustomMonth(e.target.value)}
+                          className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 outline-none focus:border-[var(--color-brand-pink)]/50 transition-all font-mono text-white text-sm"
+                        >
+                          {Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0')).map(m => (
+                            <option key={m} value={m} className="bg-[#050505]">{m}</option>
+                          ))}
+                        </select>
+                        <select 
+                          value={customYear}
+                          onChange={(e) => setCustomYear(e.target.value)}
+                          className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 outline-none focus:border-[var(--color-brand-pink)]/50 transition-all font-mono text-white text-sm"
+                        >
+                          {Array.from({ length: 10 }, (_, i) => (25 + i).toString()).map(y => (
+                            <option key={y} value={y} className="bg-[#050505]">20{y}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* CVV Customization */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between ml-1">
+                      <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest">CVV / CID</label>
+                      <button 
+                        onClick={() => setUseCustomCvv(!useCustomCvv)}
+                        className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-md transition-all ${useCustomCvv ? 'bg-[var(--color-brand-pink)] text-white' : 'bg-white/5 text-gray-500 hover:text-white'}`}
+                      >
+                        {useCustomCvv ? "Customized" : "Randomize"}
+                      </button>
+                    </div>
+                    {useCustomCvv && (
+                      <input 
+                        type="text"
+                        placeholder="e.g. 123"
+                        maxLength={4}
+                        value={customCvv}
+                        onChange={(e) => setCustomCvv(e.target.value.replace(/[^0-9]/g, ''))}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-3 outline-none focus:border-[var(--color-brand-pink)]/50 transition-all font-mono text-white text-sm"
+                      />
+                    )}
+                  </div>
+
                   {/* Quantity Slider/Selector */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 pb-2">
                     <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-1">Quantity: {amount}</label>
                     <input 
                       type="range"
@@ -102,7 +172,7 @@ export default function CardsPage() {
                       ) : (
                         <Zap className="w-4 h-4 fill-black" />
                       )}
-                      {isGenerating ? "Processing..." : "Generate Matrix"}
+                      {isGenerating ? "Processing Matrix..." : "Generate Matrix"}
                     </div>
                   </button>
                 </div>
@@ -157,7 +227,7 @@ export default function CardsPage() {
                   </div>
                 </div>
 
-                <div className="flex-1 p-6 font-mono text-xs overflow-y-auto scrollbar-hide">
+                <div className="flex-1 p-6 font-mono text-xs overflow-y-auto custom-scrollbar max-h-[600px] min-h-[600px]">
                   <AnimatePresence mode="popLayout">
                     {results.length === 0 ? (
                       <motion.div 
