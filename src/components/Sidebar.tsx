@@ -33,11 +33,12 @@ function formatPSTime(dateStr: string | undefined): string {
 function getFriendlySender(sender: string | null | undefined): string {
   if (!sender) return "Unknown Sender";
   
-  // 1. Try to extract Name from "Name <email@domain.com>"
+  // 1. Try to extract First Name from "First Last <email@domain.com>"
   if (sender.includes('<') && sender.includes('>')) {
-    const namePart = sender.split('<')[0].trim();
+    const namePart = sender.split('<')[0].trim().replace(/^"|"$/g, '');
     if (namePart) {
-      return namePart.replace(/^"|"$/g, ''); // Strip quotes if any
+      // Return only the first name (e.g., "John" from "John Doe")
+      return namePart.split(/\s+/)[0];
     }
   }
 
@@ -85,7 +86,7 @@ export default memo(function Sidebar({ emails, selectedEmailId, onSelectEmail }:
   return (
     <div className="h-full overflow-y-auto w-full custom-scrollbar bg-black/40 backdrop-blur-md">
       <div className="p-6 pb-2 border-b border-white/5">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-4">Transmission Log ({emails.length})</h3>
+        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-4">Inbox ({emails.length})</h3>
       </div>
       <div className="flex flex-col p-3 space-y-3">
         {emails.map((email) => (

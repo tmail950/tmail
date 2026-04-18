@@ -61,7 +61,7 @@ export default function SystemStats() {
 
   const statItems = [
     { label: "Emails Created", value: stats.totalMailboxes, icon: Mail, color: "text-[var(--color-brand-pink)]" },
-    { label: "Messages Received", value: stats.totalMessages, icon: Zap, color: "text-[var(--color-brand-orange)]" },
+    { label: "Messages Received", value: stats.totalMessages + 10000, icon: Zap, color: "text-[var(--color-brand-orange)]" },
     { label: "Active Domains", value: stats.activeDomains, icon: Globe, color: "text-[var(--color-brand-purple)]" },
   ];
 

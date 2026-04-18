@@ -375,20 +375,7 @@ function LoginContent() {
 
                       {/* Action Row */}
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-4 w-full mt-4">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const email = `${username}@${selectedDomain}`;
-                            const creds = `Email: ${email}\nPassword: ${password}`;
-                            navigator.clipboard.writeText(creds);
-                            setPassCopied(true);
-                            setTimeout(() => setPassCopied(false), 2000);
-                          }}
-                          className={`w-full sm:w-auto px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 border whitespace-nowrap ${passCopied ? 'bg-green-500/10 border-green-500 text-green-400' : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}
-                        >
-                          {passCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          {passCopied ? 'COPIED' : 'COPY CREDENTIALS'}
-                        </button>
+
                         
                         <button
                           type="submit"
@@ -531,12 +518,7 @@ function LoginContent() {
         </div>
       </motion.div>
 
-      <div className="mt-8 opacity-20 hover:opacity-100 transition-opacity">
-        <button className="flex items-center gap-3 px-8 py-3 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 hover:text-white transition-all">
-          <Chrome className="w-4 h-4" />
-          Quick Access Coming Soon
-        </button>
-      </div>
+
     </div>
   )
 }
