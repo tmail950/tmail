@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe, Home, LogOut, Shield, Menu, X, Users, PlusCircle, LogIn, Loader2, CheckCircle2, CreditCard } from "lucide-react";
+import { Globe, Home, LogOut, Shield, Menu, X, Users, PlusCircle, LogIn, Loader2, CheckCircle2, CreditCard, Mail } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useState, useEffect, Suspense, useMemo, memo, useCallback } from "react";
@@ -237,6 +237,7 @@ const HeaderContent = memo(() => {
   const navLinks = useMemo(() => [
     { href: "/", label: "Home", icon: Home, active: pathname === "/" },
     { href: "/cards", label: "Generate Cards", icon: CreditCard, active: pathname === "/cards" },
+    { href: "/outlook", label: "Outlook", icon: Mail, active: pathname === "/outlook" },
     ...(isAdmin ? [
       { href: "/domains", label: "Domains", icon: Globe, active: pathname === "/domains", isAdmin: true },
       { href: "/admin/settings", label: "Settings", icon: Shield, active: pathname === '/admin/settings', isAdmin: true }
